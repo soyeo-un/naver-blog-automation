@@ -168,3 +168,44 @@ export function savePlace(place: Omit<Place, "id">) {
     body: JSON.stringify(place),
   });
 }
+
+// ── Sponsorship ──
+export interface Sponsorship {
+  id: number;
+  company_name: string;
+  blog_url?: string | null;
+  start_date: string;
+  deadline: string;
+  memo?: string | null;
+  status: "pending" | "in_progress" | "completed";
+  notified: number;
+  created_at: string;
+}
+
+export function getSponsorships() {
+  return fetchAPI<Sponsorship[]>("/api/sponsorship/");
+}
+
+export function createSponsorship(data: {
+  company_name: string;
+  blog_url?: string;
+  start_date: string;
+  deadline: string;
+  memo?: string;
+}) {
+  return fetchAPI<Sponsorship>("/api/sponsorship/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateSponsorship(id: number, data: Partial<Sponsorship>) {
+  return fetchAPI<Sponsorship>(`/api/sponsorship/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteSponsorship(id: number) {
+  return fetchAPI(`/api/sponsorship/${id}`, { method: "DELETE" });
+}

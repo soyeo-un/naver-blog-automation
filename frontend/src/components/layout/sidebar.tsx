@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { href: "/", label: "대시보드", icon: LayoutDashboard },
   { href: "/write", label: "새 글 작성", icon: PenSquare },
   { href: "/style", label: "스타일 학습", icon: Sparkles },
-  { href: "/schedule", label: "협찬 일정", icon: Calendar },
+  { href: "/sponsorship", label: "협찬 일정", icon: Calendar },
   { href: "/settings", label: "설정", icon: Settings },
 ];
 
