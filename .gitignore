@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Environment
+.env
+*.db
+
+# IDE
+.vscode/
+.idea/
