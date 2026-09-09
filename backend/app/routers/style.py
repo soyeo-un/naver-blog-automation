@@ -53,5 +53,37 @@ async def analyze_from_text(data: StyleFromText, db: AsyncSession = Depends(get_
 
 @router.get("/profiles")
 async def list_profiles(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(StyleProfile).where(StyleProfile.is_active == 1))
-    return [{"id": p.id, "name": p.name, "blog_url": p.blog_url, "analyzed_style": p.analyzed_style, "created_at": str(p.created_at)} for p in result.scalars().all()]
+    result = await db.execute(select(StyleProfile).order_by(StyleProfile.created_at.desc()))
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "blog_url": p.blog_url,
+            "style_summary": p.analyzed_style,
+            "is_active": bool(p.is_active),
+            "created_at": str(p.created_at),
+        }
+        for p in result.scalars().all()
+    ]
+
+
+@router.patch("/profiles/{profile_id}")
+async def toggle_profile(profile_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(StyleProfile).where(StyleProfile.id == profile_id))
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(404, "프로필을 찾을 수 없습니다")
+    profile.is_active = 0 if profile.is_active else 1
+    await db.commit()
+    return {"id": profile.id, "is_active": bool(profile.is_active)}
+
+
+@router.delete("/profiles/{profile_id}")
+async def delete_profile(profile_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(StyleProfile).where(StyleProfile.id == profile_id))
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(404, "프로필을 찾을 수 없습니다")
+    await db.delete(profile)
+    await db.commit()
+    return {"ok": True}

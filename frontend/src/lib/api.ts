@@ -115,6 +115,16 @@ export function analyzeText(sampleTexts: string[], name: string) {
   });
 }
 
+export function toggleStyleProfile(id: number) {
+  return fetchAPI<{ id: number; is_active: boolean }>(`/api/style/profiles/${id}`, {
+    method: "PATCH",
+  });
+}
+
+export function deleteStyleProfile(id: number) {
+  return fetchAPI(`/api/style/profiles/${id}`, { method: "DELETE" });
+}
+
 // ── AI ──
 export interface EnhanceResult {
   enhanced_text: string;

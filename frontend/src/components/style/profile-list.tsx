@@ -2,17 +2,19 @@
 
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import type { StyleProfile } from "@/lib/api";
 
 interface ProfileListProps {
   profiles: StyleProfile[];
   onToggle?: (id: number, active: boolean) => void;
+  onDelete?: (id: number) => void;
 }
 
 const container = {
@@ -28,7 +30,7 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" as const } },
 };
 
-export function ProfileList({ profiles, onToggle }: ProfileListProps) {
+export function ProfileList({ profiles, onToggle, onDelete }: ProfileListProps) {
   if (profiles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -62,23 +64,32 @@ export function ProfileList({ profiles, onToggle }: ProfileListProps) {
                   {profile.is_active ? "활성" : "비활성"}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor={`toggle-${profile.id}`} className="text-xs text-muted-foreground">
-                  활성화
-                </Label>
-                <Switch
-                  id={`toggle-${profile.id}`}
-                  checked={profile.is_active}
-                  onCheckedChange={(checked: boolean) =>
-                    onToggle?.(profile.id, checked)
-                  }
-                  size="sm"
-                />
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor={`toggle-${profile.id}`} className="text-xs text-muted-foreground">
+                    활성화
+                  </Label>
+                  <Switch
+                    id={`toggle-${profile.id}`}
+                    checked={profile.is_active}
+                    onCheckedChange={(checked: boolean) =>
+                      onToggle?.(profile.id, checked)
+                    }
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => onDelete?.(profile.id)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
             </CardHeader>
             {profile.style_summary && (
               <CardContent>
-                <p className="text-sm leading-relaxed text-muted-foreground">
+                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
                   {profile.style_summary}
                 </p>
               </CardContent>

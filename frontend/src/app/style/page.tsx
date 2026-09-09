@@ -6,7 +6,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UrlAnalyzer } from "@/components/style/url-analyzer";
 import { TextAnalyzer } from "@/components/style/text-analyzer";
 import { ProfileList } from "@/components/style/profile-list";
-import { getStyleProfiles, type StyleProfile } from "@/lib/api";
+import {
+  getStyleProfiles,
+  toggleStyleProfile,
+  deleteStyleProfile,
+  type StyleProfile,
+} from "@/lib/api";
 
 export default function StylePage() {
   const [profiles, setProfiles] = useState<StyleProfile[]>([]);
@@ -21,6 +26,16 @@ export default function StylePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleToggle = async (id: number) => {
+    await toggleStyleProfile(id);
+    await loadProfiles();
+  };
+
+  const handleDelete = async (id: number) => {
+    await deleteStyleProfile(id);
+    await loadProfiles();
   };
 
   useEffect(() => {
@@ -76,7 +91,11 @@ export default function StylePage() {
             ))}
           </div>
         ) : (
-          <ProfileList profiles={profiles} />
+          <ProfileList
+            profiles={profiles}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+          />
         )}
       </motion.div>
     </div>
