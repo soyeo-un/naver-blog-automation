@@ -70,6 +70,11 @@ app.include_router(upload.router)
 app.include_router(sponsorship.router)
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "Naver Blog Automation API"}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
