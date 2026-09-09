@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
-from app.routers import posts, clean
+from app.routers import posts, clean, style, ai, places
 
 
 @asynccontextmanager
@@ -23,6 +23,9 @@ app.add_middleware(
 
 app.include_router(posts.router)
 app.include_router(clean.router)
+app.include_router(style.router)
+app.include_router(ai.router)
+app.include_router(places.router)
 
 
 @app.get("/health")
