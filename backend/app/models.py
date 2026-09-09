@@ -38,6 +38,7 @@ class StyleProfile(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(200), nullable=False)
+    category = Column(String(100), nullable=True)
     blog_url = Column(String(500), nullable=True)
     sample_texts = Column(Text, nullable=True)
     analyzed_style = Column(Text, nullable=True)

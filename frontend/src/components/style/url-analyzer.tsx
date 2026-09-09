@@ -5,6 +5,7 @@ import { Loader2, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "./category-select";
 import { analyzeUrl } from "@/lib/api";
 
 interface UrlAnalyzerProps {
@@ -14,20 +15,22 @@ interface UrlAnalyzerProps {
 export function UrlAnalyzer({ onComplete }: UrlAnalyzerProps) {
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleAnalyze = async () => {
-    if (!url.trim() || !name.trim()) {
-      setError("URL과 프로필 이름을 모두 입력해주세요");
+    if (!url.trim() || !name.trim() || !category) {
+      setError("URL, 프로필 이름, 카테고리를 모두 입력해주세요");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      await analyzeUrl(url.trim(), name.trim());
+      await analyzeUrl(url.trim(), name.trim(), category);
       setUrl("");
       setName("");
+      setCategory("");
       onComplete();
     } catch (err) {
       setError(
@@ -40,6 +43,7 @@ export function UrlAnalyzer({ onComplete }: UrlAnalyzerProps) {
 
   return (
     <div className="space-y-4">
+      <CategorySelect value={category} onChange={setCategory} />
       <div className="space-y-2">
         <Label>블로그 URL</Label>
         <Input

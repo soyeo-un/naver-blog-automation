@@ -11,15 +11,24 @@ from app.services.blog_crawler import BlogCrawler
 router = APIRouter(prefix="/api/style", tags=["style"])
 analyzer = StyleAnalyzer()
 
+CATEGORIES = ["맛집", "여행", "숙소", "카페", "미용실", "피부관리", "일상", "기타"]
+
 
 class StyleFromURL(BaseModel):
     blog_url: str
     name: str
+    category: str = ""
 
 
 class StyleFromText(BaseModel):
     sample_texts: list[str]
     name: str
+    category: str = ""
+
+
+@router.get("/categories")
+async def list_categories():
+    return CATEGORIES
 
 
 @router.post("/analyze-url")
@@ -27,9 +36,9 @@ async def analyze_from_url(data: StyleFromURL, db: AsyncSession = Depends(get_db
     posts = await BlogCrawler.fetch_blog_posts(data.blog_url)
     if not posts:
         raise HTTPException(400, "블로그 글을 가져올 수 없습니다")
-    style = await analyzer.analyze_style(posts)
+    style = await analyzer.analyze_style(posts, data.category)
     profile = StyleProfile(
-        name=data.name, blog_url=data.blog_url,
+        name=data.name, category=data.category, blog_url=data.blog_url,
         sample_texts="\n---\n".join(posts[:5]), analyzed_style=style,
     )
     db.add(profile)
@@ -40,9 +49,10 @@ async def analyze_from_url(data: StyleFromURL, db: AsyncSession = Depends(get_db
 
 @router.post("/analyze-text")
 async def analyze_from_text(data: StyleFromText, db: AsyncSession = Depends(get_db)):
-    style = await analyzer.analyze_style(data.sample_texts)
+    style = await analyzer.analyze_style(data.sample_texts, data.category)
     profile = StyleProfile(
-        name=data.name, sample_texts="\n---\n".join(data.sample_texts),
+        name=data.name, category=data.category,
+        sample_texts="\n---\n".join(data.sample_texts),
         analyzed_style=style,
     )
     db.add(profile)
@@ -58,7 +68,7 @@ async def list_profiles(db: AsyncSession = Depends(get_db)):
         {
             "id": p.id,
             "name": p.name,
-            "blog_url": p.blog_url,
+            "category": p.category or "",
             "style_summary": p.analyzed_style,
             "is_active": bool(p.is_active),
             "created_at": str(p.created_at),

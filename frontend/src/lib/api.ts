@@ -92,6 +92,7 @@ export function scanText(text: string) {
 export interface StyleProfile {
   id: number;
   name: string;
+  category?: string;
   style_summary?: string;
   is_active: boolean;
   created_at: string;
@@ -101,17 +102,21 @@ export function getStyleProfiles() {
   return fetchAPI<StyleProfile[]>("/api/style/profiles");
 }
 
-export function analyzeUrl(blogUrl: string, name: string) {
+export function getCategories() {
+  return fetchAPI<string[]>("/api/style/categories");
+}
+
+export function analyzeUrl(blogUrl: string, name: string, category: string) {
   return fetchAPI<StyleProfile>("/api/style/analyze-url", {
     method: "POST",
-    body: JSON.stringify({ blog_url: blogUrl, name }),
+    body: JSON.stringify({ blog_url: blogUrl, name, category }),
   });
 }
 
-export function analyzeText(sampleTexts: string[], name: string) {
+export function analyzeText(sampleTexts: string[], name: string, category: string) {
   return fetchAPI<StyleProfile>("/api/style/analyze-text", {
     method: "POST",
-    body: JSON.stringify({ sample_texts: sampleTexts, name }),
+    body: JSON.stringify({ sample_texts: sampleTexts, name, category }),
   });
 }
 

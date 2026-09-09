@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { CategorySelect } from "./category-select";
 import { analyzeText } from "@/lib/api";
 
 interface TextAnalyzerProps {
@@ -15,25 +16,26 @@ interface TextAnalyzerProps {
 export function TextAnalyzer({ onComplete }: TextAnalyzerProps) {
   const [text, setText] = useState("");
   const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleAnalyze = async () => {
-    if (!text.trim() || !name.trim()) {
-      setError("텍스트와 프로필 이름을 모두 입력해주세요");
+    if (!text.trim() || !name.trim() || !category) {
+      setError("텍스트, 프로필 이름, 카테고리를 모두 입력해주세요");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      // Split text by double newlines as separate samples
       const samples = text
         .split(/\n{2,}/)
         .map((s) => s.trim())
         .filter(Boolean);
-      await analyzeText(samples.length > 0 ? samples : [text.trim()], name.trim());
+      await analyzeText(samples.length > 0 ? samples : [text.trim()], name.trim(), category);
       setText("");
       setName("");
+      setCategory("");
       onComplete();
     } catch (err) {
       setError(
@@ -46,6 +48,7 @@ export function TextAnalyzer({ onComplete }: TextAnalyzerProps) {
 
   return (
     <div className="space-y-4">
+      <CategorySelect value={category} onChange={setCategory} />
       <div className="space-y-2">
         <Label>샘플 텍스트</Label>
         <Textarea
