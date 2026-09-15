@@ -48,12 +48,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Naver Blog Automation API", lifespan=lifespan)
 
+allowed_origins = [
+    "http://localhost:3000",
+    settings.frontend_url.rstrip("/"),
+]
+print(f"[CORS] frontend_url={settings.frontend_url!r}, allowed_origins={allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        settings.frontend_url,
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
