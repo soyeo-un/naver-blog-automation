@@ -66,7 +66,6 @@ class CORSDebugMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-app.add_middleware(CORSDebugMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -74,6 +73,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(CORSDebugMiddleware)
 
 app.include_router(posts.router)
 app.include_router(clean.router)
