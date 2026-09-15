@@ -52,28 +52,15 @@ allowed_origins = [
     "http://localhost:3000",
     settings.frontend_url.rstrip("/"),
 ]
-print(f"[CORS] frontend_url={settings.frontend_url!r}, allowed_origins={allowed_origins}")
-
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-
-
-class CORSDebugMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.method == "OPTIONS":
-            origin = request.headers.get("origin", "NO_ORIGIN")
-            print(f"[CORS-DEBUG] OPTIONS {request.url.path} origin={origin!r}")
-        return await call_next(request)
-
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://naver-blog-automation-sxtf.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(CORSDebugMiddleware)
 
 app.include_router(posts.router)
 app.include_router(clean.router)
