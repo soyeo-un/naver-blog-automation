@@ -54,6 +54,19 @@ allowed_origins = [
 ]
 print(f"[CORS] frontend_url={settings.frontend_url!r}, allowed_origins={allowed_origins}")
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+
+class CORSDebugMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            origin = request.headers.get("origin", "NO_ORIGIN")
+            print(f"[CORS-DEBUG] OPTIONS {request.url.path} origin={origin!r}")
+        return await call_next(request)
+
+
+app.add_middleware(CORSDebugMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
