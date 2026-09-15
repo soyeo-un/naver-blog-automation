@@ -23,7 +23,11 @@ async def list_posts(
 
 @router.post("/", response_model=PostResponse, status_code=201)
 async def create_post(data: PostCreate, db: AsyncSession = Depends(get_db)):
-    post = Post(**data.model_dump())
+    post = Post(
+        title=data.title,
+        keywords=",".join(data.keywords),
+        draft_content=data.draft_text,
+    )
     db.add(post)
     await db.commit()
     await db.refresh(post)

@@ -6,8 +6,8 @@ from app.models import PostStatus
 
 class PostCreate(BaseModel):
     title: str
-    keywords: str
-    draft_content: str
+    keywords: list[str]
+    draft_text: str
 
 
 class PostUpdate(BaseModel):
