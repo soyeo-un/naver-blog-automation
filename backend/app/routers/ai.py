@@ -27,12 +27,14 @@ async def enhance_post(data: EnhanceRequest, db: AsyncSession = Depends(get_db))
     if not post:
         raise HTTPException(404, "Post not found")
     style_json = None
+    sample_texts = None
     if data.style_profile_id:
         sr = await db.execute(select(StyleProfile).where(StyleProfile.id == data.style_profile_id))
         profile = sr.scalar_one_or_none()
         if profile:
             style_json = profile.analyzed_style
-    enhanced = await writer.enhance_draft(post.keywords, post.draft_content, style_json)
+            sample_texts = profile.sample_texts
+    enhanced = await writer.enhance_draft(post.keywords, post.draft_content, style_json, sample_texts)
     post.ai_content = enhanced["enhanced"]
     post.status = PostStatus.REVIEWING
     await db.commit()
