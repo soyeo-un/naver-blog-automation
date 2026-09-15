@@ -59,10 +59,7 @@ export function ProfileList({ profiles, onToggle, onDelete }: ProfileListProps) 
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-sm">{profile.name}</CardTitle>
-                {profile.category && (
-                  <Badge variant="outline">{profile.category}</Badge>
-                )}
+                <CardTitle className="text-sm">{profile.category || profile.name}</CardTitle>
                 <Badge variant={profile.is_active ? "default" : "secondary"}>
                   {profile.is_active ? "활성" : "비활성"}
                 </Badge>

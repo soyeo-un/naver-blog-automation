@@ -49,7 +49,7 @@ export default function ReviewPage({
     if (!post) return;
     setRerunning(true);
     try {
-      await enhancePost(post.id, post.style_profile_id ?? undefined);
+      await enhancePost(post.id);
       const updated = await getPost(post.id);
       setPost(updated);
     } catch {

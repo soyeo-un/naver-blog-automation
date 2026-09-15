@@ -1,43 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Sparkles, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { KeywordInput } from "@/components/write/keyword-input";
 import { DraftEditor } from "@/components/write/draft-editor";
-import {
-  createPost,
-  enhancePost,
-  getStyleProfiles,
-  type StyleProfile,
-} from "@/lib/api";
+import { CategorySelect } from "@/components/style/category-select";
+import { createPost, enhancePost } from "@/lib/api";
 
 export default function WritePage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
   const [draftText, setDraftText] = useState("");
-  const [styleProfileId, setStyleProfileId] = useState<string>("");
-  const [profiles, setProfiles] = useState<StyleProfile[]>([]);
+  const [category, setCategory] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    getStyleProfiles()
-      .then(setProfiles)
-      .catch(() => {});
-  }, []);
 
   const handleEnhance = async () => {
     if (!title.trim()) {
@@ -56,12 +38,8 @@ export default function WritePage() {
         title: title.trim(),
         keywords,
         draft_text: draftText.trim(),
-        style_profile_id: styleProfileId ? Number(styleProfileId) : undefined,
       });
-      await enhancePost(
-        post.id,
-        styleProfileId ? Number(styleProfileId) : undefined
-      );
+      await enhancePost(post.id, category || undefined);
       router.push(`/write/${post.id}/review`);
     } catch (err) {
       setError(
@@ -114,26 +92,8 @@ export default function WritePage() {
           <DraftEditor value={draftText} onChange={setDraftText} />
         </div>
 
-        {/* Style Profile Selector */}
-        {profiles.length > 0 && (
-          <div className="space-y-2">
-            <Label>스타일 프로필</Label>
-            <Select value={styleProfileId} onValueChange={(val) => setStyleProfileId(val ?? "")}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="스타일 프로필 선택 (선택사항)" />
-              </SelectTrigger>
-              <SelectContent>
-                {profiles
-                  .filter((p) => p.is_active)
-                  .map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        {/* Category */}
+        <CategorySelect value={category} onChange={setCategory} />
 
         {/* Error */}
         {error && (

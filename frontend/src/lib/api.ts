@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export async function fetchAPI<T = unknown>(
   path: string,
@@ -43,7 +43,6 @@ export function createPost(data: {
   title: string;
   keywords: string[];
   draft_text: string;
-  style_profile_id?: number;
 }) {
   return fetchAPI<Post>("/api/posts/", {
     method: "POST",
@@ -106,17 +105,17 @@ export function getCategories() {
   return fetchAPI<string[]>("/api/style/categories");
 }
 
-export function analyzeUrl(blogUrl: string, name: string, category: string) {
+export function analyzeUrl(blogUrl: string, category: string) {
   return fetchAPI<StyleProfile>("/api/style/analyze-url", {
     method: "POST",
-    body: JSON.stringify({ blog_url: blogUrl, name, category }),
+    body: JSON.stringify({ blog_url: blogUrl, category }),
   });
 }
 
-export function analyzeText(sampleTexts: string[], name: string, category: string) {
+export function analyzeText(sampleTexts: string[], category: string) {
   return fetchAPI<StyleProfile>("/api/style/analyze-text", {
     method: "POST",
-    body: JSON.stringify({ sample_texts: sampleTexts, name, category }),
+    body: JSON.stringify({ sample_texts: sampleTexts, category }),
   });
 }
 
@@ -141,12 +140,12 @@ export interface DetectResult {
   label: string;
 }
 
-export function enhancePost(postId: number, styleProfileId?: number) {
+export function enhancePost(postId: number, category?: string) {
   return fetchAPI<EnhanceResult>("/api/ai/enhance", {
     method: "POST",
     body: JSON.stringify({
       post_id: postId,
-      style_profile_id: styleProfileId,
+      category,
     }),
   });
 }

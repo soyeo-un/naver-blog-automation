@@ -14,6 +14,7 @@ writer = AIWriter()
 class EnhanceRequest(BaseModel):
     post_id: int
     style_profile_id: int | None = None
+    category: str | None = None
 
 
 class DetectionRequest(BaseModel):
@@ -28,7 +29,17 @@ async def enhance_post(data: EnhanceRequest, db: AsyncSession = Depends(get_db))
         raise HTTPException(404, "Post not found")
     style_json = None
     sample_texts = None
-    if data.style_profile_id:
+    if data.category:
+        sr = await db.execute(
+            select(StyleProfile).where(
+                StyleProfile.category == data.category, StyleProfile.is_active == 1
+            )
+        )
+        profile = sr.scalar_one_or_none()
+        if profile:
+            style_json = profile.analyzed_style
+            sample_texts = profile.sample_texts
+    elif data.style_profile_id:
         sr = await db.execute(select(StyleProfile).where(StyleProfile.id == data.style_profile_id))
         profile = sr.scalar_one_or_none()
         if profile:

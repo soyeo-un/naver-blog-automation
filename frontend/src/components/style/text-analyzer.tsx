@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Loader2, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CategorySelect } from "./category-select";
@@ -15,14 +14,13 @@ interface TextAnalyzerProps {
 
 export function TextAnalyzer({ onComplete }: TextAnalyzerProps) {
   const [text, setText] = useState("");
-  const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleAnalyze = async () => {
-    if (!text.trim() || !name.trim() || !category) {
-      setError("텍스트, 프로필 이름, 카테고리를 모두 입력해주세요");
+    if (!text.trim() || !category) {
+      setError("카테고리와 텍스트를 모두 입력해주세요");
       return;
     }
     setLoading(true);
@@ -32,10 +30,8 @@ export function TextAnalyzer({ onComplete }: TextAnalyzerProps) {
         .split(/\n{2,}/)
         .map((s) => s.trim())
         .filter(Boolean);
-      await analyzeText(samples.length > 0 ? samples : [text.trim()], name.trim(), category);
+      await analyzeText(samples.length > 0 ? samples : [text.trim()], category);
       setText("");
-      setName("");
-      setCategory("");
       onComplete();
     } catch (err) {
       setError(
@@ -57,15 +53,9 @@ export function TextAnalyzer({ onComplete }: TextAnalyzerProps) {
           placeholder="블로그 글 샘플을 붙여넣기 하세요. 여러 샘플은 빈 줄로 구분해주세요."
           className="min-h-[180px]"
         />
-      </div>
-      <div className="space-y-2">
-        <Label>프로필 이름</Label>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="예: 내 블로그 스타일"
-          className="h-9"
-        />
+        <p className="text-xs text-muted-foreground">
+          같은 카테고리에 텍스트를 추가할수록 스타일이 정교해져요
+        </p>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button

@@ -16,14 +16,14 @@ CATEGORIES = ["맛집", "여행", "숙소", "카페", "미용실", "피부관리
 
 class StyleFromURL(BaseModel):
     blog_url: str
-    name: str
-    category: str = ""
+    category: str
+    name: str = ""
 
 
 class StyleFromText(BaseModel):
     sample_texts: list[str]
-    name: str
-    category: str = ""
+    category: str
+    name: str = ""
 
 
 @router.get("/categories")
@@ -31,34 +31,70 @@ async def list_categories():
     return CATEGORIES
 
 
+MAX_SAMPLES = 15
+
+
+def _accumulate_samples(existing_texts: str | None, new_samples: list[str]) -> list[str]:
+    existing = existing_texts.split("\n---\n") if existing_texts else []
+    combined = existing + new_samples
+    return combined[-MAX_SAMPLES:]
+
+
 @router.post("/analyze-url")
 async def analyze_from_url(data: StyleFromURL, db: AsyncSession = Depends(get_db)):
     posts = await BlogCrawler.fetch_blog_posts(data.blog_url)
     if not posts:
         raise HTTPException(400, "블로그 글을 가져올 수 없습니다")
-    style = await analyzer.analyze_style(posts, data.category)
-    profile = StyleProfile(
-        name=data.name, category=data.category, blog_url=data.blog_url,
-        sample_texts="\n---\n".join(posts[:5]), analyzed_style=style,
+
+    result = await db.execute(
+        select(StyleProfile).where(StyleProfile.category == data.category)
     )
-    db.add(profile)
+    profile = result.scalar_one_or_none()
+
+    all_samples = _accumulate_samples(
+        profile.sample_texts if profile else None, posts[:5]
+    )
+    style = await analyzer.analyze_style(all_samples, data.category)
+
+    if profile:
+        profile.blog_url = data.blog_url
+        profile.sample_texts = "\n---\n".join(all_samples)
+        profile.analyzed_style = style
+    else:
+        profile = StyleProfile(
+            name=data.category, category=data.category, blog_url=data.blog_url,
+            sample_texts="\n---\n".join(all_samples), analyzed_style=style,
+        )
+        db.add(profile)
     await db.commit()
     await db.refresh(profile)
-    return {"id": profile.id, "style": style}
+    return {"id": profile.id, "style": style, "sample_count": len(all_samples)}
 
 
 @router.post("/analyze-text")
 async def analyze_from_text(data: StyleFromText, db: AsyncSession = Depends(get_db)):
-    style = await analyzer.analyze_style(data.sample_texts, data.category)
-    profile = StyleProfile(
-        name=data.name, category=data.category,
-        sample_texts="\n---\n".join(data.sample_texts),
-        analyzed_style=style,
+    result = await db.execute(
+        select(StyleProfile).where(StyleProfile.category == data.category)
     )
-    db.add(profile)
+    profile = result.scalar_one_or_none()
+
+    all_samples = _accumulate_samples(
+        profile.sample_texts if profile else None, data.sample_texts
+    )
+    style = await analyzer.analyze_style(all_samples, data.category)
+
+    if profile:
+        profile.sample_texts = "\n---\n".join(all_samples)
+        profile.analyzed_style = style
+    else:
+        profile = StyleProfile(
+            name=data.category, category=data.category,
+            sample_texts="\n---\n".join(all_samples), analyzed_style=style,
+        )
+        db.add(profile)
     await db.commit()
     await db.refresh(profile)
-    return {"id": profile.id, "style": style}
+    return {"id": profile.id, "style": style, "sample_count": len(all_samples)}
 
 
 @router.get("/profiles")

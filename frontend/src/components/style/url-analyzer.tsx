@@ -14,23 +14,20 @@ interface UrlAnalyzerProps {
 
 export function UrlAnalyzer({ onComplete }: UrlAnalyzerProps) {
   const [url, setUrl] = useState("");
-  const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleAnalyze = async () => {
-    if (!url.trim() || !name.trim() || !category) {
-      setError("URL, 프로필 이름, 카테고리를 모두 입력해주세요");
+    if (!url.trim() || !category) {
+      setError("카테고리와 URL을 모두 입력해주세요");
       return;
     }
     setLoading(true);
     setError("");
     try {
-      await analyzeUrl(url.trim(), name.trim(), category);
+      await analyzeUrl(url.trim(), category);
       setUrl("");
-      setName("");
-      setCategory("");
       onComplete();
     } catch (err) {
       setError(
@@ -52,15 +49,9 @@ export function UrlAnalyzer({ onComplete }: UrlAnalyzerProps) {
           placeholder="https://blog.naver.com/example"
           className="h-9"
         />
-      </div>
-      <div className="space-y-2">
-        <Label>프로필 이름</Label>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="예: 맛집 블로거 스타일"
-          className="h-9"
-        />
+        <p className="text-xs text-muted-foreground">
+          같은 카테고리에 URL을 추가할수록 스타일이 정교해져요
+        </p>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button
