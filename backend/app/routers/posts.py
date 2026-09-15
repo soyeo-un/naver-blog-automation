@@ -43,6 +43,13 @@ async def get_post(post_id: int, db: AsyncSession = Depends(get_db)):
     return post
 
 
+FIELD_MAP = {
+    "draft_text": "draft_content",
+    "enhanced_text": "ai_content",
+    "clean_html": "final_html",
+}
+
+
 @router.patch("/{post_id}", response_model=PostResponse)
 async def update_post(post_id: int, data: PostUpdate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Post).where(Post.id == post_id))
@@ -50,7 +57,10 @@ async def update_post(post_id: int, data: PostUpdate, db: AsyncSession = Depends
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(post, key, value)
+        db_field = FIELD_MAP.get(key, key)
+        if db_field == "keywords" and isinstance(value, list):
+            value = ",".join(value)
+        setattr(post, db_field, value)
     await db.commit()
     await db.refresh(post)
     return post
