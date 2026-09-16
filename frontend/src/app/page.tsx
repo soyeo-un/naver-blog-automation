@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, PenSquare, Palette, FileText, Calendar, Camera } from "lucide-react";
+import { PenSquare, Palette, FileText, Calendar, Camera } from "lucide-react";
+import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WriteSection } from "@/components/sections/write-section";
 import { StyleSection } from "@/components/sections/style-section";
@@ -40,13 +41,14 @@ export default function HomePage() {
         transition={{ duration: 0.3 }}
         className="mb-8 flex items-center gap-2"
       >
-        <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
-          <Sparkles className="size-3.5 text-primary" />
-        </div>
-        <h1 className="flex items-baseline gap-1 text-foreground/80">
-          <span className="font-[var(--font-handwriting)] text-lg">숀로그</span>
-          <span className="font-[var(--font-pixel)] text-[10px] text-primary">auto</span>
-        </h1>
+        <Image
+          src="/logo.png"
+          alt="숀로그 auto"
+          width={100}
+          height={40}
+          className="h-7 w-auto"
+          priority
+        />
         <ApiDot />
       </motion.div>
 
