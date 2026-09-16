@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Camera,
   Loader2,
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { CategorySelect } from "@/components/style/category-select";
 import {
   uploadPhotos,
+  uploadPhotoUrls,
   analyzePhotos,
   generatePhotoDraft,
   approvePhotoDraft,
@@ -29,6 +30,7 @@ export function PhotoSection() {
 
   // upload
   const [files, setFiles] = useState<File[]>([]);
+  const [pastedUrls, setPastedUrls] = useState<string[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [category, setCategory] = useState("");
   const [clientRequest, setClientRequest] = useState("");
@@ -62,34 +64,73 @@ export function PhotoSection() {
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (step !== "upload") return;
-      const items = e.clipboardData?.items;
-      if (!items) return;
+      const clip = e.clipboardData;
+      if (!clip) return;
+
+      // 1) 이미지 파일 (스크린샷, 파일 탐색기 복사)
       const images: File[] = [];
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith("image/")) {
-          const file = items[i].getAsFile();
-          if (file) images.push(file);
+      if (clip.files.length > 0) {
+        for (let i = 0; i < clip.files.length; i++) {
+          const f = clip.files[i];
+          if (f.type.startsWith("image/")) images.push(f);
+        }
+      }
+      if (images.length === 0 && clip.items) {
+        for (let i = 0; i < clip.items.length; i++) {
+          if (clip.items[i].type.startsWith("image/")) {
+            const file = clip.items[i].getAsFile();
+            if (file) images.push(file);
+          }
         }
       }
       if (images.length > 0) {
         e.preventDefault();
         addFiles(images);
+        return;
+      }
+
+      // 2) HTML에서 img URL 추출 (네이버 블로그 등 웹 복사)
+      const html = clip.getData("text/html");
+      if (html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const imgEls = doc.querySelectorAll("img");
+        const urls: string[] = [];
+        imgEls.forEach((img) => {
+          const src = img.getAttribute("src");
+          if (src && src.startsWith("http")) urls.push(src);
+        });
+        if (urls.length > 0) {
+          e.preventDefault();
+          setPastedUrls((prev) => [...prev, ...urls].slice(0, 50));
+          setPreviews((prev) => [...prev, ...urls].slice(0, 12));
+        }
       }
     };
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
   }, [step, addFiles]);
 
+  const totalCount = files.length + pastedUrls.length;
+
   const handleUploadAndAnalyze = async () => {
-    if (files.length === 0) {
-      setError("사진을 선택해주세요");
+    if (totalCount === 0) {
+      setError("사진을 선택하거나 붙여넣기 해주세요");
       return;
     }
     setError("");
     setStep("analyzing");
 
     try {
-      const uploadRes = await uploadPhotos(files, category, clientRequest, keywords);
+      let uploadRes: { photo_post_id: number; uploaded: number };
+      if (pastedUrls.length > 0 && files.length === 0) {
+        uploadRes = await uploadPhotoUrls(pastedUrls, category, clientRequest, keywords);
+      } else if (pastedUrls.length > 0) {
+        // 파일 + URL 혼합: 파일 먼저 업로드 (URL은 무시 - 복잡도 줄임)
+        uploadRes = await uploadPhotos(files, category, clientRequest, keywords);
+      } else {
+        uploadRes = await uploadPhotos(files, category, clientRequest, keywords);
+      }
       setPhotoPostId(uploadRes.photo_post_id);
 
       const analyzeRes = await analyzePhotos(
@@ -136,6 +177,7 @@ export function PhotoSection() {
   const handleReset = () => {
     setStep("upload");
     setFiles([]);
+    setPastedUrls([]);
     setPreviews([]);
     setPhotoPostId(null);
     setScenes([]);
@@ -144,6 +186,30 @@ export function PhotoSection() {
     setEditedBody("");
     setApproved(false);
     setError("");
+  };
+
+  const [dragging, setDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    setDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setDragging(false);
+  };
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (droppedFiles.length > 0) addFiles(droppedFiles);
   };
 
   return (
@@ -155,12 +221,22 @@ export function PhotoSection() {
             <Label className="text-xs text-muted-foreground">
               사진 업로드 (최대 50장)
             </Label>
-            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border/50 bg-muted/20 p-6 transition-colors hover:border-primary/30 hover:bg-muted/40">
-              <ImagePlus className="size-8 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {files.length > 0
-                  ? `${files.length}장 선택됨`
-                  : "클릭하여 사진 선택 또는 Ctrl+V로 붙여넣기"}
+            <label
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-6 transition-colors ${
+                dragging
+                  ? "border-primary bg-primary/10"
+                  : "border-border/50 bg-muted/20 hover:border-primary/30 hover:bg-muted/40"
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              <ImagePlus className={`size-8 ${dragging ? "text-primary" : "text-muted-foreground"}`} />
+              <span className="text-xs text-muted-foreground text-center">
+                {totalCount > 0
+                  ? `${totalCount}장 선택됨${pastedUrls.length > 0 ? " (붙여넣기)" : ""}`
+                  : "클릭 · 드래그 · Ctrl+V"}
               </span>
               <input
                 type="file"
@@ -186,10 +262,10 @@ export function PhotoSection() {
                     />
                   </div>
                 ))}
-                {files.length > 12 && (
+                {totalCount > 12 && (
                   <div className="flex aspect-square items-center justify-center rounded-lg bg-muted/50">
                     <span className="text-xs text-muted-foreground">
-                      +{files.length - 12}장
+                      +{totalCount - 12}장
                     </span>
                   </div>
                 )}
@@ -226,7 +302,7 @@ export function PhotoSection() {
 
           <Button
             onClick={handleUploadAndAnalyze}
-            disabled={files.length === 0}
+            disabled={totalCount === 0}
             className="w-full gap-2 h-10"
           >
             <Camera className="size-4" />
@@ -240,7 +316,7 @@ export function PhotoSection() {
         <div className="flex flex-col items-center gap-3 py-12">
           <Loader2 className="size-8 animate-spin text-primary" />
           <p className="text-sm font-medium">
-            사진 {files.length}장 분석 중...
+            사진 {totalCount}장 분석 중...
           </p>
           <p className="text-xs text-muted-foreground">
             장면별로 그룹화하고 있어요

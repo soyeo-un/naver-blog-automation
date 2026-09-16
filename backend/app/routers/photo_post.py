@@ -2,11 +2,13 @@ import json
 import uuid
 import io
 from pathlib import Path
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from PIL import Image
+import httpx
 
 from app.database import get_db
 from app.models import PhotoPost, PhotoItem, CorrectionExample
@@ -22,6 +24,13 @@ tracker = CorrectionTracker()
 UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MAX_WIDTH = 1200
+
+
+class UploadUrlsRequest(BaseModel):
+    urls: list[str]
+    category: str = ""
+    client_request: str = ""
+    keywords: str = ""
 
 
 class AnalyzeRequest(BaseModel):
@@ -98,6 +107,81 @@ async def upload_photos(
             filename=filename,
         ))
         filenames.append(filename)
+
+    post.status = "uploaded"
+    post.photo_count = len(filenames)
+    await db.commit()
+
+    return {
+        "photo_post_id": post.id,
+        "uploaded": len(filenames),
+    }
+
+
+@router.post("/upload-urls")
+async def upload_from_urls(data: UploadUrlsRequest, db: AsyncSession = Depends(get_db)):
+    """이미지 URL 목록을 받아서 다운로드 후 PhotoPost 생성"""
+    urls = data.urls[:50]
+    if not urls:
+        raise HTTPException(400, "URL이 없습니다")
+
+    post = PhotoPost(
+        category=data.category,
+        keywords=data.keywords,
+        client_request=data.client_request,
+        status="uploading",
+        photo_count=len(urls),
+    )
+    db.add(post)
+    await db.commit()
+    await db.refresh(post)
+
+    filenames = []
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        for idx, url in enumerate(urls):
+            try:
+                resp = await client.get(url, headers={
+                    "Referer": "https://blog.naver.com/",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                })
+                if resp.status_code != 200:
+                    continue
+                ct = resp.headers.get("content-type", "")
+                if not ct.startswith("image/"):
+                    continue
+
+                img = Image.open(io.BytesIO(resp.content))
+                if img.width > MAX_WIDTH:
+                    ratio = MAX_WIDTH / img.width
+                    img = img.resize((MAX_WIDTH, int(img.height * ratio)), Image.LANCZOS)
+
+                parsed = urlparse(url)
+                ext = parsed.path.rsplit(".", 1)[-1] if "." in parsed.path else "jpg"
+                if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+                    ext = "jpg"
+                filename = f"{uuid.uuid4().hex}.{ext}"
+                filepath = UPLOAD_DIR / filename
+
+                img_bytes = io.BytesIO()
+                fmt = img.format or "JPEG"
+                if fmt.upper() == "MPO":
+                    fmt = "JPEG"
+                img.save(img_bytes, format=fmt, quality=85)
+                filepath.write_bytes(img_bytes.getvalue())
+
+                db.add(PhotoItem(
+                    photo_post_id=post.id,
+                    order_index=idx + 1,
+                    filename=filename,
+                ))
+                filenames.append(filename)
+            except Exception:
+                continue
+
+    if not filenames:
+        await db.delete(post)
+        await db.commit()
+        raise HTTPException(400, "이미지를 다운로드할 수 없습니다")
 
     post.status = "uploaded"
     post.photo_count = len(filenames)

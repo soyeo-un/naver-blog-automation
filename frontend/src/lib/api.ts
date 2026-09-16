@@ -394,6 +394,21 @@ export async function uploadPhotos(
   return res.json() as Promise<{ photo_post_id: number; uploaded: number }>;
 }
 
+export function uploadPhotoUrls(
+  urls: string[],
+  category = "",
+  clientRequest = "",
+  keywords = "",
+) {
+  return fetchAPI<{ photo_post_id: number; uploaded: number }>(
+    "/api/photo-post/upload-urls",
+    {
+      method: "POST",
+      body: JSON.stringify({ urls, category, client_request: clientRequest, keywords }),
+    },
+  );
+}
+
 export function analyzePhotos(photoPostId: number, category = "", clientRequest = "") {
   return fetchAPI<{
     photo_post_id: number;
