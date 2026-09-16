@@ -6,9 +6,11 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models import Post, PostStatus, StyleProfile
 from app.services.ai_writer import AIWriter
+from app.services.correction_tracker import CorrectionTracker
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 writer = AIWriter()
+tracker = CorrectionTracker()
 
 
 class EnhanceRequest(BaseModel):
@@ -25,6 +27,12 @@ class DetectionRequest(BaseModel):
     text: str
 
 
+class ApproveRequest(BaseModel):
+    post_id: int
+    user_final: str
+    category: str = ""
+
+
 @router.post("/enhance")
 async def enhance_post(data: EnhanceRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Post).where(Post.id == data.post_id))
@@ -33,6 +41,7 @@ async def enhance_post(data: EnhanceRequest, db: AsyncSession = Depends(get_db))
         raise HTTPException(404, "Post not found")
     style_json = None
     sample_texts = None
+    category = data.category or ""
     if data.category:
         sr = await db.execute(
             select(StyleProfile).where(
@@ -49,11 +58,47 @@ async def enhance_post(data: EnhanceRequest, db: AsyncSession = Depends(get_db))
         if profile:
             style_json = profile.analyzed_style
             sample_texts = profile.sample_texts
-    enhanced = await writer.enhance_draft(post.keywords, post.draft_content, style_json, sample_texts)
+    enhanced = await writer.enhance_draft(
+        post.keywords,
+        post.draft_content,
+        category=category,
+        style_profile=style_json,
+        sample_texts=sample_texts,
+        db=db,
+    )
     post.ai_content = enhanced["enhanced"]
     post.status = PostStatus.REVIEWING
     await db.commit()
     return enhanced
+
+
+@router.post("/approve")
+async def approve_correction(data: ApproveRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Post).where(Post.id == data.post_id))
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(404, "Post not found")
+
+    before_text = post.draft_content or ""
+    ai_output = post.ai_content or ""
+
+    post.final_content = data.user_final
+    post.status = PostStatus.SCHEDULED
+
+    correction_result = await tracker.save_correction(
+        db=db,
+        post_id=data.post_id,
+        before_text=before_text,
+        ai_output=ai_output,
+        user_final=data.user_final,
+        category=data.category,
+    )
+
+    await db.commit()
+    return {
+        "ok": True,
+        "correction": correction_result,
+    }
 
 
 @router.post("/suggest-titles")

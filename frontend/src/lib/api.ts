@@ -269,3 +269,167 @@ export function updateSchedule(id: number, data: Partial<ScheduleEvent>) {
 export function deleteSchedule(id: number) {
   return fetchAPI(`/api/schedule/${id}`, { method: "DELETE" });
 }
+
+// ── Examples & Learning ──
+export interface ExampleStats {
+  sentence_examples: number;
+  paragraph_examples: number;
+  total_corrections: number;
+  approved_corrections: number;
+}
+
+export interface CorrectionItem {
+  id: number;
+  post_id: number | null;
+  has_diff: boolean;
+  approved: boolean;
+  category: string;
+  created_at: string;
+}
+
+export function getExampleStats() {
+  return fetchAPI<ExampleStats>("/api/examples/stats");
+}
+
+export function extractExamplesFromUrl(blogUrl: string, category: string, maxPosts = 10) {
+  return fetchAPI<{ posts_processed: number; sentences_extracted: number; paragraphs_extracted: number }>(
+    "/api/examples/extract-url",
+    {
+      method: "POST",
+      body: JSON.stringify({ blog_url: blogUrl, category, max_posts: maxPosts }),
+    }
+  );
+}
+
+export function extractExamplesFromText(text: string, category: string) {
+  return fetchAPI<{ sentences: number; paragraphs: number }>(
+    "/api/examples/extract-text",
+    {
+      method: "POST",
+      body: JSON.stringify({ text, category }),
+    }
+  );
+}
+
+export function approveCorrection(postId: number, userFinal: string, category = "") {
+  return fetchAPI<{ ok: boolean; correction: { id: number; has_changes: boolean; style_update_needed: boolean } }>(
+    "/api/ai/approve",
+    {
+      method: "POST",
+      body: JSON.stringify({ post_id: postId, user_final: userFinal, category }),
+    }
+  );
+}
+
+export function updateStyleJson() {
+  return fetchAPI<{ updated: boolean; corrections_used?: number; reason?: string }>(
+    "/api/examples/update-style",
+    { method: "POST" }
+  );
+}
+
+export function getCorrections(limit = 20) {
+  return fetchAPI<CorrectionItem[]>(`/api/examples/corrections?limit=${limit}`);
+}
+
+// ── Photo Post ──
+export interface PhotoPostScene {
+  scene_id: number;
+  category: string;
+  summary: string;
+  photo_count: number;
+}
+
+export interface PhotoPostPhoto {
+  id: number;
+  order: number;
+  filename: string;
+  url: string;
+  description: string;
+  scene_id: number | null;
+  scene_category: string;
+}
+
+export interface PhotoPostDetail {
+  id: number;
+  title: string | null;
+  keywords: string | null;
+  category: string | null;
+  client_request: string | null;
+  status: string;
+  photo_count: number;
+  draft_content: string | null;
+  user_final: string | null;
+  scenes: PhotoPostScene[];
+  photos: PhotoPostPhoto[];
+  created_at: string;
+}
+
+export interface PhotoPostListItem {
+  id: number;
+  title: string;
+  category: string;
+  status: string;
+  photo_count: number;
+  created_at: string;
+}
+
+export async function uploadPhotos(
+  files: File[],
+  category = "",
+  clientRequest = "",
+  keywords = "",
+) {
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+  if (category) formData.append("category", category);
+  if (clientRequest) formData.append("client_request", clientRequest);
+  if (keywords) formData.append("keywords", keywords);
+
+  const res = await fetch(`${API_URL}/api/photo-post/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  return res.json() as Promise<{ photo_post_id: number; uploaded: number }>;
+}
+
+export function analyzePhotos(photoPostId: number, category = "", clientRequest = "") {
+  return fetchAPI<{
+    photo_post_id: number;
+    total_photos: number;
+    total_scenes: number;
+    scenes: PhotoPostScene[];
+  }>("/api/photo-post/analyze", {
+    method: "POST",
+    body: JSON.stringify({ photo_post_id: photoPostId, category, client_request: clientRequest }),
+  });
+}
+
+export function generatePhotoDraft(photoPostId: number, keywords = "") {
+  return fetchAPI<{ photo_post_id: number; title: string; body: string }>(
+    "/api/photo-post/generate",
+    {
+      method: "POST",
+      body: JSON.stringify({ photo_post_id: photoPostId, keywords }),
+    },
+  );
+}
+
+export function approvePhotoDraft(photoPostId: number, userFinal: string, category = "") {
+  return fetchAPI<{ ok: boolean; correction: { id: number; has_changes: boolean; style_update_needed: boolean } }>(
+    "/api/photo-post/approve",
+    {
+      method: "POST",
+      body: JSON.stringify({ photo_post_id: photoPostId, user_final: userFinal, category }),
+    },
+  );
+}
+
+export function getPhotoPost(id: number) {
+  return fetchAPI<PhotoPostDetail>(`/api/photo-post/${id}`);
+}
+
+export function getPhotoPosts() {
+  return fetchAPI<PhotoPostListItem[]>("/api/photo-post/");
+}

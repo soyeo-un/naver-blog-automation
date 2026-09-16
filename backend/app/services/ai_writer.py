@@ -1,9 +1,12 @@
 import json
 from pathlib import Path
 from openai import AsyncOpenAI
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import settings
 from app.services.text_cleaner import TextCleaner
 from app.services.web_searcher import WebSearcher
+from app.services.example_searcher import ExampleSearcher
 
 STYLE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "style.json"
 
@@ -26,6 +29,7 @@ def _build_style_prompt(style: dict) -> str:
     casual = style.get("casual_expression", {})
     reaction = style.get("personal_reaction", {})
     tip = style.get("tip_style", {})
+    principles = style.get("core_principles", [])
     examples = style.get("reference_examples", [])
 
     endings = ", ".join(sentence.get("preferred_endings", []))
@@ -38,10 +42,14 @@ def _build_style_prompt(style: dict) -> str:
     emo = " ".join(emotion.get("emotion", []))
     pos_emoji = " ".join(emotion.get("positive", []))
     casual_examples = ", ".join(casual.get("examples", [])[:5])
+    principle_lines = "\n".join(f"- {p}" for p in principles)
 
     return f"""## 페르소나: {identity.get('persona', '블로거')}
 스타일: {identity.get('overall_style', '')}
 시점: {identity.get('writing_perspective', '1인칭')}
+
+## 핵심 원칙:
+{principle_lines}
 
 ## 말투
 톤: {', '.join(voice.get('tone', []))}
@@ -70,7 +78,7 @@ def _build_style_prompt(style: dict) -> str:
 ## 캐주얼 표현 (선택적): {casual_examples}
 {casual.get('rule', '')}
 
-## 절대 금지 표현:
+## 금지 표현 (광고/업체 소개문 톤):
 {avoid_list}
 AI 표현 금지: {avoid_ai}
 
@@ -78,14 +86,84 @@ AI 표현 금지: {avoid_ai}
 {example_lines}"""
 
 
+def _build_examples_prompt(examples: dict) -> str:
+    parts = []
+
+    # 문장 예시: 앞뒤 문맥을 함께 보여줘서 문장 연결 패턴 학습
+    sentences = examples.get("sentence_examples", [])
+    if sentences:
+        lines = []
+        for s in sentences:
+            block = ""
+            if s.get("previous"):
+                block += f"{s['previous']}\n"
+            block += f"→ {s['sentence']}"
+            if s.get("next"):
+                block += f"\n{s['next']}"
+            lines.append(block)
+        parts.append(
+            "## 관련 문장 예시 (문체와 문장 간 연결 흐름 참고):\n"
+            + "\n\n".join(lines)
+        )
+
+    # 문단 예시: 문장 순서 그대로 보여줘서 전개 방식 학습
+    paragraphs = examples.get("paragraph_examples", [])
+    if paragraphs:
+        para_lines = []
+        for p in paragraphs:
+            sents = p.get("sentences", [])
+            para_lines.append("\n".join(sents))
+        parts.append(
+            "## 관련 문단 예시 (문단 전개 방식과 호흡 참고):\n"
+            + "\n---\n".join(para_lines)
+        )
+
+    # 사용자 교정 예시: AI→사용자 수정 방향 학습
+    corrections = examples.get("correction_examples", [])
+    if corrections:
+        corr_lines = []
+        for c in corrections:
+            if c.get("user"):
+                corr_lines.append(f"AI: {c['ai']}\n→ 사용자 수정: {c['user']}")
+        if corr_lines:
+            parts.append(
+                "## 사용자 수정 패턴 (AI가 쓴 것을 사용자가 이렇게 고침):\n"
+                + "\n\n".join(corr_lines)
+            )
+
+    return "\n\n".join(parts)
+
+
+EXAMPLE_USAGE_RULES = """## 예시 활용 규칙 (필수):
+제공된 예시는 사용자의 문체, 문장 연결, 문단 전개 방식을 참고하기 위한 것이다.
+예시 문장을 그대로 복사하거나 이어 붙이지 말고, 현재 글의 사실관계와 맥락을 우선하여 새로운 문장으로 작성한다.
+특히 예시에서 특정 표현을 무조건 가져오지 않는다.
+현재 문장과 앞뒤 문맥, 그리고 다음 문장과의 자연스러운 연결을 우선한다.
+사용자 수정 패턴이 있다면, AI가 같은 방향의 실수를 반복하지 않도록 적용한다."""
+
+
 class AIWriter:
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
         self._style = _load_style()
         self._style_prompt = _build_style_prompt(self._style)
+        self._searcher = ExampleSearcher()
 
-    async def enhance_draft(self, keywords: str, draft: str, style_profile: str | None = None, sample_texts: str | None = None) -> dict:
+    async def enhance_draft(
+        self,
+        keywords: str,
+        draft: str,
+        category: str = "",
+        style_profile: str | None = None,
+        sample_texts: str | None = None,
+        db: AsyncSession | None = None,
+    ) -> dict:
         web_info = await WebSearcher.collect_info(keywords)
+
+        examples_prompt = ""
+        if db:
+            examples = await self._searcher.search_relevant(draft, category, db)
+            examples_prompt = _build_examples_prompt(examples)
 
         messages = []
 
@@ -95,11 +173,17 @@ class AIWriter:
 {self._style_prompt}
 """
 
-        # 스타일 분석 결과가 있으면 보충 정보로 추가
         if style_profile:
             system_content += f"""
 ## 추가 스타일 분석 (보충 참고):
 {style_profile}
+"""
+
+        if examples_prompt:
+            system_content += f"""
+{examples_prompt}
+
+{EXAMPLE_USAGE_RULES}
 """
 
         system_content += f"""
@@ -110,13 +194,13 @@ class AIWriter:
 4. 키워드를 자연스럽게 초반에 배치하세요
 5. 소제목은 최소한으로만 (없어도 됨)
 6. 블로그 본문 텍스트만 출력하세요
+7. 강한 긍정 표현(인생 맛집, 무조건 추천 등)은 실제 만족도가 높은 상황에서만 자연스럽게 사용
 
 ## 참고 정보 (필요시 자연스럽게 반영):
 {web_info if web_info else "없음"}"""
 
         messages.append({"role": "system", "content": system_content})
 
-        # few-shot: 실제 글 예시
         if sample_texts:
             samples = [s.strip() for s in sample_texts.split("\n---\n") if s.strip()]
             for sample in samples[:3]:

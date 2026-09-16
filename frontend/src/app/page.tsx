@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, PenSquare, Palette, FileText, Calendar } from "lucide-react";
+import { Sparkles, PenSquare, Palette, FileText, Calendar, Camera } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WriteSection } from "@/components/sections/write-section";
 import { StyleSection } from "@/components/sections/style-section";
 import { PostsSection } from "@/components/sections/posts-section";
 import { CalendarSection } from "@/components/sections/calendar-section";
+import { PhotoSection } from "@/components/sections/photo-section";
 import { API_URL } from "@/lib/api";
 
 function ApiDot() {
@@ -54,11 +55,15 @@ export default function HomePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.05 }}
       >
-        <Tabs defaultValue="write">
+        <Tabs defaultValue="photo">
           <TabsList className="mb-6 w-full">
+            <TabsTrigger value="photo" className="gap-1.5 text-xs">
+              <Camera className="size-3" />
+              사진 글
+            </TabsTrigger>
             <TabsTrigger value="write" className="gap-1.5 text-xs">
               <PenSquare className="size-3" />
-              글 작성
+              글 보정
             </TabsTrigger>
             <TabsTrigger value="style" className="gap-1.5 text-xs">
               <Palette className="size-3" />
@@ -73,6 +78,10 @@ export default function HomePage() {
               캘린더
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="photo">
+            <PhotoSection />
+          </TabsContent>
 
           <TabsContent value="write">
             <WriteSection />

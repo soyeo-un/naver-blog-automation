@@ -3,11 +3,19 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, RotateCw, Loader2, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  RotateCw,
+  Loader2,
+  ShieldCheck,
+  Check,
+  Pencil,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getPost, enhancePost, type Post } from "@/lib/api";
+import { getPost, enhancePost, approveCorrection, type Post } from "@/lib/api";
 
 function AiScoreBadge({ score }: { score: number }) {
   let color = "bg-green-500/10 text-green-600";
@@ -20,7 +28,9 @@ function AiScoreBadge({ score }: { score: number }) {
     label = "주의";
   }
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold ${color}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold ${color}`}
+    >
       <ShieldCheck className="size-4" />
       AI 탐지 {score}점 — {label}
     </span>
@@ -37,10 +47,21 @@ export default function ReviewPage({
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [rerunning, setRerunning] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editedText, setEditedText] = useState("");
+  const [approving, setApproving] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [approveResult, setApproveResult] = useState<{
+    has_changes: boolean;
+    style_update_needed: boolean;
+  } | null>(null);
 
   useEffect(() => {
     getPost(Number(id))
-      .then(setPost)
+      .then((p) => {
+        setPost(p);
+        setEditedText(p.enhanced_text || "");
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
@@ -48,14 +69,35 @@ export default function ReviewPage({
   const handleRerun = async () => {
     if (!post) return;
     setRerunning(true);
+    setApproved(false);
+    setApproveResult(null);
     try {
       await enhancePost(post.id);
       const updated = await getPost(post.id);
       setPost(updated);
+      setEditedText(updated.enhanced_text || "");
+      setEditing(false);
     } catch {
       // silently fail
     } finally {
       setRerunning(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!post) return;
+    setApproving(true);
+    try {
+      const result = await approveCorrection(post.id, editedText);
+      setApproved(true);
+      setApproveResult({
+        has_changes: result.correction.has_changes,
+        style_update_needed: result.correction.style_update_needed,
+      });
+    } catch {
+      // silently fail
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -75,6 +117,9 @@ export default function ReviewPage({
     );
   }
 
+  const hasEdits =
+    editedText.trim() !== (post.enhanced_text || "").trim();
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
       <motion.div
@@ -92,7 +137,9 @@ export default function ReviewPage({
           </Button>
           <div>
             <h1 className="text-lg font-bold tracking-tight">AI 보정 결과</h1>
-            <p className="text-xs text-muted-foreground">원문과 보정본을 비교하세요</p>
+            <p className="text-xs text-muted-foreground">
+              원문과 보정본을 비교하고, 수정 후 승인하세요
+            </p>
           </div>
         </div>
       </motion.div>
@@ -105,6 +152,30 @@ export default function ReviewPage({
           transition={{ delay: 0.08 }}
         >
           <AiScoreBadge score={post.ai_detection_score} />
+        </motion.div>
+      )}
+
+      {/* Approved notification */}
+      {approved && approveResult && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3"
+        >
+          <div className="flex items-center gap-2 text-sm text-emerald-400">
+            <Check className="size-4" />
+            <span>스타일 학습 데이터로 저장됨</span>
+            {approveResult.has_changes && (
+              <Badge variant="secondary" className="text-[10px]">
+                수정 반영
+              </Badge>
+            )}
+          </div>
+          {approveResult.style_update_needed && (
+            <p className="mt-1 text-xs text-emerald-400/70">
+              교정 데이터가 충분히 쌓였습니다. 스타일 탭에서 스타일 업데이트를 실행하세요.
+            </p>
+          )}
         </motion.div>
       )}
 
@@ -130,18 +201,34 @@ export default function ReviewPage({
           </CardContent>
         </Card>
 
-        {/* Enhanced */}
+        {/* Enhanced / Editable */}
         <Card className="ring-2 ring-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Badge>AI 보정</Badge>
-              보정본
+              <Badge>{editing ? "수정 중" : "AI 보정"}</Badge>
+              {editing ? "직접 수정하세요" : "보정본"}
+              {!editing && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed">
-              {post.enhanced_text || "보정 결과가 없습니다"}
-            </div>
+            {editing ? (
+              <textarea
+                value={editedText}
+                onChange={(e) => setEditedText(e.target.value)}
+                className="min-h-[300px] w-full resize-y rounded-lg border-0 bg-muted/30 p-3 text-sm leading-relaxed focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+            ) : (
+              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed">
+                {editedText || "보정 결과가 없습니다"}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -166,6 +253,23 @@ export default function ReviewPage({
           )}
           다시 보정하기
         </Button>
+
+        {!approved && (
+          <Button
+            variant={hasEdits ? "default" : "secondary"}
+            onClick={handleApprove}
+            disabled={approving}
+            className="gap-2"
+          >
+            {approving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Check className="size-4" />
+            )}
+            {hasEdits ? "수정 후 승인 (학습에 반영)" : "그대로 승인"}
+          </Button>
+        )}
+
         <Button
           onClick={() => router.push(`/write/${id}/edit`)}
           className="gap-2"
