@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Camera,
   Loader2,
@@ -45,13 +45,40 @@ export function PhotoSection() {
   const [approved, setApproved] = useState(false);
   const [styleUpdateNeeded, setStyleUpdateNeeded] = useState(false);
 
+  const addFiles = useCallback((newFiles: File[]) => {
+    setFiles((prev) => {
+      const merged = [...prev, ...newFiles].slice(0, 50);
+      const urls = merged.slice(0, 12).map((f) => URL.createObjectURL(f));
+      setPreviews(urls);
+      return merged;
+    });
+  }, []);
+
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []).slice(0, 50);
-    setFiles(selected);
-    // 미리보기 생성 (최대 12개만)
-    const urls = selected.slice(0, 12).map((f) => URL.createObjectURL(f));
-    setPreviews(urls);
+    const selected = Array.from(e.target.files || []);
+    addFiles(selected);
   };
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (step !== "upload") return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const images: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) images.push(file);
+        }
+      }
+      if (images.length > 0) {
+        e.preventDefault();
+        addFiles(images);
+      }
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [step, addFiles]);
 
   const handleUploadAndAnalyze = async () => {
     if (files.length === 0) {
@@ -133,7 +160,7 @@ export function PhotoSection() {
               <span className="text-xs text-muted-foreground">
                 {files.length > 0
                   ? `${files.length}장 선택됨`
-                  : "클릭하여 사진 선택"}
+                  : "클릭하여 사진 선택 또는 Ctrl+V로 붙여넣기"}
               </span>
               <input
                 type="file"
