@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models import Post, PostStatus, StyleProfile
 from app.services.ai_writer import AIWriter
 from app.services.correction_tracker import CorrectionTracker
+from app.services.text_cleaner import TextCleaner
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 writer = AIWriter()
@@ -82,7 +83,7 @@ async def approve_correction(data: ApproveRequest, db: AsyncSession = Depends(ge
     before_text = post.draft_content or ""
     ai_output = post.ai_content or ""
 
-    post.final_content = data.user_final
+    post.final_content = TextCleaner.clean(data.user_final)
     post.status = PostStatus.SCHEDULED
 
     correction_result = await tracker.save_correction(

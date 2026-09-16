@@ -13,6 +13,7 @@ import httpx
 from app.database import get_db
 from app.models import PhotoPost, PhotoItem, CorrectionExample
 from app.services.photo_analyzer import PhotoAnalyzer
+from app.services.text_cleaner import TextCleaner
 from app.services.draft_generator import DraftGenerator
 from app.services.correction_tracker import CorrectionTracker
 
@@ -322,7 +323,7 @@ async def approve_draft(data: ApproveRequest, db: AsyncSession = Depends(get_db)
         category=category,
     )
 
-    post.user_final = data.user_final
+    post.user_final = TextCleaner.clean(data.user_final)
     post.status = "approved"
     await db.commit()
 
