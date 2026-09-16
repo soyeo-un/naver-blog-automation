@@ -12,6 +12,15 @@ import { TextStyle as TextStyleExtension } from "@tiptap/extension-text-style";
 import HighlightExtension from "@tiptap/extension-highlight";
 import { Toolbar } from "./toolbar";
 
+// 히든 유니코드 문자 제거 (백엔드 TextCleaner와 동일한 패턴)
+const INVISIBLE_RE =
+  // eslint-disable-next-line no-control-regex
+  /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0]/g;
+
+function stripInvisible(text: string) {
+  return text.replace(INVISIBLE_RE, "");
+}
+
 interface TiptapEditorProps {
   content: string;
   onChange?: (html: string) => void;
@@ -47,6 +56,8 @@ export function TiptapEditor({
         class:
           "prose prose-sm max-w-none min-h-[400px] rounded-b-xl border border-input bg-transparent px-4 py-3 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50 dark:prose-invert",
       },
+      transformPastedText: (text) => stripInvisible(text),
+      transformPastedHTML: (html) => stripInvisible(html),
     },
     immediatelyRender: false,
   });
