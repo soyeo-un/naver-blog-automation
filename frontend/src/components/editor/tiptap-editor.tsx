@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditor, EditorContent } from "@tiptap/react";
+import { Extension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
@@ -20,6 +21,18 @@ const INVISIBLE_RE =
 function stripInvisible(text: string) {
   return text.replace(INVISIBLE_RE, "");
 }
+
+// Enter = 줄바꿈(br), Shift+Enter = 새 문단(p) — 네이버 블로그와 동일
+const EnterAsLineBreak = Extension.create({
+  name: "enterAsLineBreak",
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => editor.commands.setHardBreak(),
+      "Shift-Enter": ({ editor }) =>
+        editor.commands.splitBlock(),
+    };
+  },
+});
 
 interface TiptapEditorProps {
   content: string;
@@ -46,6 +59,7 @@ export function TiptapEditor({
       ColorExtension,
       TextStyleExtension,
       HighlightExtension,
+      EnterAsLineBreak,
     ],
     content,
     onUpdate: ({ editor: ed }) => {
