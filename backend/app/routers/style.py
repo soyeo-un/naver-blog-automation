@@ -1,7 +1,10 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.models import StyleProfile
@@ -42,7 +45,11 @@ def _accumulate_samples(existing_texts: str | None, new_samples: list[str]) -> l
 
 @router.post("/analyze-url")
 async def analyze_from_url(data: StyleFromURL, db: AsyncSession = Depends(get_db)):
-    posts = await BlogCrawler.fetch_blog_posts(data.blog_url)
+    try:
+        posts = await BlogCrawler.fetch_blog_posts(data.blog_url)
+    except Exception as e:
+        logger.error(f"블로그 크롤링 실패: {e}")
+        raise HTTPException(500, f"블로그 크롤링 실패: {e}")
     if not posts:
         raise HTTPException(400, "블로그 글을 가져올 수 없습니다")
 
@@ -54,7 +61,11 @@ async def analyze_from_url(data: StyleFromURL, db: AsyncSession = Depends(get_db
     all_samples = _accumulate_samples(
         profile.sample_texts if profile else None, posts[:5]
     )
-    style = await analyzer.analyze_style(all_samples, data.category)
+    try:
+        style = await analyzer.analyze_style(all_samples, data.category)
+    except Exception as e:
+        logger.error(f"스타일 분석 실패: {e}")
+        raise HTTPException(500, f"스타일 분석 실패: {e}")
 
     if profile:
         profile.blog_url = data.blog_url
