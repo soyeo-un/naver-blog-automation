@@ -1,6 +1,17 @@
 import re
 import unicodedata
 
+# GPT가 넣는 마크다운 서식 제거
+MARKDOWN_PATTERN = re.compile(
+    r"\*\*(.+?)\*\*"  # **bold**
+    r"|__(.+?)__"      # __bold__
+    r"|(?<!\w)\*(.+?)\*(?!\w)"  # *italic*
+    r"|(?<!\w)_(.+?)_(?!\w)"    # _italic_
+    r"|~~(.+?)~~"      # ~~strikethrough~~
+    r"|^#{1,6}\s+",    # ### headings
+    re.MULTILINE,
+)
+
 INVISIBLE_PATTERN = re.compile(
     "["
     "\u00ad"
@@ -23,9 +34,18 @@ INVISIBLE_PATTERN = re.compile(
 )
 
 
+def _strip_markdown(match: re.Match) -> str:
+    """마크다운 기호는 제거하고 내용만 남김"""
+    for group in match.groups():
+        if group is not None:
+            return group
+    return ""
+
+
 class TextCleaner:
     @staticmethod
     def clean(text: str) -> str:
+        text = MARKDOWN_PATTERN.sub(_strip_markdown, text)
         return INVISIBLE_PATTERN.sub("", text)
 
     @staticmethod
