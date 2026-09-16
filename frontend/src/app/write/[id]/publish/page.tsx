@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ExternalLink, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CleanReport } from "@/components/publish/clean-report";
@@ -20,6 +21,7 @@ export default function PublishPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [cleaning, setCleaning] = useState(false);
@@ -102,10 +104,19 @@ export default function PublishPage({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
       >
-        <h1 className="text-2xl font-bold tracking-tight">발행 준비</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          글을 검증하고 네이버에 발행하세요
-        </p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => router.push("/")}
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">발행 준비</h1>
+            <p className="text-xs text-muted-foreground">검증하고 네이버에 발행하세요</p>
+          </div>
+        </div>
       </motion.div>
 
       {/* Clean Report */}

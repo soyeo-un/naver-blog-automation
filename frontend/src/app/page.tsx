@@ -1,94 +1,96 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { PenSquare, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { StatsCards } from "@/components/dashboard/stats-cards";
-import { PostList } from "@/components/dashboard/post-list";
-import { getPosts, type Post } from "@/lib/api";
+import { motion } from "framer-motion";
+import { Sparkles, PenSquare, Palette, FileText, Calendar } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WriteSection } from "@/components/sections/write-section";
+import { StyleSection } from "@/components/sections/style-section";
+import { PostsSection } from "@/components/sections/posts-section";
+import { SponsorshipSection } from "@/components/sections/sponsorship-section";
+import { API_URL } from "@/lib/api";
 
-export default function DashboardPage() {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadPosts = async () => {
-    setLoading(true);
-    try {
-      const data = await getPosts();
-      setPosts(data);
-    } catch {
-      // API not reachable — use empty state
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+function ApiDot() {
+  const [status, setStatus] = useState<"checking" | "ok" | "fail">("checking");
 
   useEffect(() => {
-    loadPosts();
+    fetch(`${API_URL}/health`, { cache: "no-store" })
+      .then((r) => setStatus(r.ok ? "ok" : "fail"))
+      .catch(() => setStatus("fail"));
   }, []);
 
-  const stats = {
-    totalPosts: posts.length,
-    weeklyPublished: posts.filter(
-      (p) =>
-        p.status === "published" &&
-        new Date(p.created_at) > new Date(Date.now() - 7 * 86400000)
-    ).length,
-    avgSeoScore:
-      posts.length > 0
-        ? Math.round(
-            posts.reduce((s, p) => s + (p.seo_score ?? 0), 0) / posts.length
-          )
-        : 0,
-    pendingPosts: posts.filter(
-      (p) => p.status === "draft" || p.status === "reviewing"
-    ).length,
-  };
+  const color = status === "ok" ? "bg-emerald-400" : status === "fail" ? "bg-red-400" : "bg-yellow-400";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 p-6 md:p-10">
+    <span
+      className={`inline-block size-1.5 rounded-full ${color}`}
+      title={status === "ok" ? "API 연결됨" : status === "fail" ? "API 연결 안됨" : "확인 중"}
+    />
+  );
+}
+
+export default function HomePage() {
+  return (
+    <div className="mx-auto min-h-screen max-w-xl px-5 py-8 md:py-12">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">대시보드</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            블로그 글 작성 현황을 한눈에 확인하세요
-          </p>
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="mb-8 flex items-center gap-2.5"
+      >
+        <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+          <Sparkles className="size-3.5 text-primary" />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-sm" onClick={loadPosts}>
-            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-          <Link href="/write">
-            <Button className="gap-1.5">
-              <PenSquare className="size-4" />
-              새 글 작성
-            </Button>
-          </Link>
-        </div>
-      </div>
+        <h1 className="text-sm font-semibold tracking-tight text-foreground/80">
+          블로그 자동화
+        </h1>
+        <ApiDot />
+      </motion.div>
 
-      {/* Stats */}
-      <StatsCards stats={stats} />
+      {/* Main tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+      >
+        <Tabs defaultValue="write">
+          <TabsList className="mb-6 w-full">
+            <TabsTrigger value="write" className="gap-1.5 text-xs">
+              <PenSquare className="size-3" />
+              글 작성
+            </TabsTrigger>
+            <TabsTrigger value="style" className="gap-1.5 text-xs">
+              <Palette className="size-3" />
+              스타일
+            </TabsTrigger>
+            <TabsTrigger value="posts" className="gap-1.5 text-xs">
+              <FileText className="size-3" />
+              내 글
+            </TabsTrigger>
+            <TabsTrigger value="sponsorship" className="gap-1.5 text-xs">
+              <Calendar className="size-3" />
+              협찬
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Post list */}
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">최근 글</h2>
-        {loading ? (
-          <div className="flex flex-col gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-20 animate-pulse rounded-xl bg-muted"
-              />
-            ))}
-          </div>
-        ) : (
-          <PostList posts={posts} />
-        )}
-      </div>
+          <TabsContent value="write">
+            <WriteSection />
+          </TabsContent>
+
+          <TabsContent value="style">
+            <StyleSection />
+          </TabsContent>
+
+          <TabsContent value="posts">
+            <PostsSection />
+          </TabsContent>
+
+          <TabsContent value="sponsorship">
+            <SponsorshipSection />
+          </TabsContent>
+        </Tabs>
+      </motion.div>
     </div>
   );
 }

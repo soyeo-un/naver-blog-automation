@@ -17,6 +17,10 @@ class EnhanceRequest(BaseModel):
     category: str | None = None
 
 
+class TitleSuggestRequest(BaseModel):
+    keywords: list[str]
+
+
 class DetectionRequest(BaseModel):
     text: str
 
@@ -50,6 +54,14 @@ async def enhance_post(data: EnhanceRequest, db: AsyncSession = Depends(get_db))
     post.status = PostStatus.REVIEWING
     await db.commit()
     return enhanced
+
+
+@router.post("/suggest-titles")
+async def suggest_titles(data: TitleSuggestRequest):
+    if not data.keywords:
+        raise HTTPException(400, "키워드를 입력해주세요")
+    titles = await writer.suggest_titles(data.keywords)
+    return {"titles": titles}
 
 
 @router.post("/detect")

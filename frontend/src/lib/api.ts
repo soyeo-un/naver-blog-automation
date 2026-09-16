@@ -157,6 +157,13 @@ export function detectAI(text: string) {
   });
 }
 
+export function suggestTitles(keywords: string[]) {
+  return fetchAPI<{ titles: string[] }>("/api/ai/suggest-titles", {
+    method: "POST",
+    body: JSON.stringify({ keywords }),
+  });
+}
+
 // ── Places ──
 export interface Place {
   id?: number;

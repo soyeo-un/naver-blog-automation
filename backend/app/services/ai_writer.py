@@ -25,15 +25,30 @@ class AIWriter:
 ## 작성자 말투 분석:
 {style_profile}
 
+## 구두점 규칙 (최우선 적용):
+스타일 분석의 "punctuation_style" 항목을 반드시 따르세요.
+- 작성자가 문장 끝에 마침표(.)를 안 붙이면 → 절대 붙이지 마세요
+- 작성자가 쉼표(,)를 잘 안 쓰면 → 쉼표 넣지 마세요
+- 작성자가 따옴표(' ")를 안 쓰면 → 따옴표 넣지 마세요
+- 작성자가 쓰는 구두점만 그대로 사용하세요
+이건 가장 중요한 규칙입니다. 구두점 하나가 AI 티를 냅니다.
+
+## 소제목 규칙:
+스타일 분석의 "heading_style" 항목을 반드시 따르세요.
+- 작성자가 소제목을 안 쓰면 → 소제목 달지 마세요
+- 작성자가 소제목을 적게 쓰면 → 최소한으로만 사용하세요
+- 절대 AI식으로 소제목을 남발하지 마세요
+
 ## 절대 금지:
 - AI스러운 표현 ("또한", "뿐만 아니라", "이처럼", "살펴보겠습니다", "알아보겠습니다")
 - 작성자가 안 쓰는 문체로 바꾸기
 - 과도한 존댓말이나 딱딱한 표현
+- 작성자 원래 구두점 습관을 무시하고 교정하는 행위
 
 ## 작업:
 사용자의 초안을 작성자 말투 그대로 다듬어주세요.
 초안의 내용과 의도는 유지하되, 말투/표현/이모지만 작성자 스타일로 바꾸세요.
-키워드를 자연스럽게 초반, 소제목에 배치하세요.
+키워드를 자연스럽게 초반에 배치하세요.
 블로그 본문 텍스트만 출력하세요.
 
 ## 참고 정보 (필요시 자연스럽게 반영):
@@ -70,7 +85,9 @@ class AIWriter:
 2. 초안 문장 기반으로 살을 붙이기 (새로 쓰지 않기)
 3. AI스러운 표현 금지 ("또한", "뿐만 아니라", "이처럼" 남발 금지)
 4. 자연스러운 구어체 혼합, 문장 길이 다양하게
-5. 키워드를 자연스럽게 초반, 소제목에 배치
+5. 키워드를 자연스럽게 초반에 배치
+6. 소제목은 최소한으로만 사용 (없어도 됨)
+7. 초안의 구두점 스타일을 그대로 따르기 (마침표 안 찍으면 안 찍기, 쉼표 안 쓰면 안 쓰기)
 
 ## 참고 정보:
 {web_info if web_info else "없음"}
@@ -94,6 +111,42 @@ class AIWriter:
             "web_info_used": web_info,
             "clean_scan": TextCleaner.scan(clean_text),
         }
+
+    async def suggest_titles(self, keywords: list[str]) -> list[str]:
+        keyword_str = ", ".join(keywords)
+        response = await self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """네이버 블로그 제목 전문가입니다.
+키워드를 받으면 네이버 상위 노출에 유리한 블로그 제목 5개를 추천합니다.
+
+## 규칙:
+- 키워드를 자연스럽게 포함
+- 클릭하고 싶은 제목 (궁금증 유발, 후기형, 정보형 등 다양하게)
+- 너무 길지 않게 (30자 내외)
+- AI스러운 제목 금지 (~ 의 모든 것, ~ 완벽 가이드 같은 거)
+- 실제 블로거들이 쓸 법한 자연스러운 제목
+
+JSON 배열로 반환: ["제목1", "제목2", "제목3", "제목4", "제목5"]""",
+                },
+                {
+                    "role": "user",
+                    "content": f"키워드: {keyword_str}",
+                },
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.8,
+        )
+        import json
+        result = json.loads(response.choices[0].message.content)
+        if isinstance(result, list):
+            return result[:5]
+        for key in result:
+            if isinstance(result[key], list):
+                return result[key][:5]
+        return []
 
     async def check_ai_detection(self, text: str) -> str:
         response = await self.client.chat.completions.create(

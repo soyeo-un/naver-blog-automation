@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, RotateCw, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,10 +82,19 @@ export default function ReviewPage({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
       >
-        <h1 className="text-2xl font-bold tracking-tight">AI 보정 결과</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          원문과 AI 보정본을 비교하고 수정하세요
-        </p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => router.push("/")}
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">AI 보정 결과</h1>
+            <p className="text-xs text-muted-foreground">원문과 보정본을 비교하세요</p>
+          </div>
+        </div>
       </motion.div>
 
       {/* AI Detection Score */}
