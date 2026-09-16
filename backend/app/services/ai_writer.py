@@ -1,101 +1,133 @@
+import json
+from pathlib import Path
 from openai import AsyncOpenAI
 from app.config import settings
 from app.services.text_cleaner import TextCleaner
 from app.services.web_searcher import WebSearcher
 
+STYLE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "style.json"
+
+
+def _load_style() -> dict:
+    if STYLE_PATH.exists():
+        return json.loads(STYLE_PATH.read_text(encoding="utf-8"))
+    return {}
+
+
+def _build_style_prompt(style: dict) -> str:
+    if not style:
+        return ""
+
+    identity = style.get("identity", {})
+    voice = style.get("voice", {})
+    sentence = style.get("sentence_style", {})
+    anti = style.get("anti_style", {})
+    emotion = style.get("emotion_style", {})
+    casual = style.get("casual_expression", {})
+    reaction = style.get("personal_reaction", {})
+    tip = style.get("tip_style", {})
+    examples = style.get("reference_examples", [])
+
+    endings = ", ".join(sentence.get("preferred_endings", []))
+    avoid_list = "\n".join(f"- {x}" for x in anti.get("avoid", []))
+    avoid_ai = ", ".join(anti.get("also_avoid_ai", []))
+    reaction_patterns = "\n".join(f"- {x}" for x in reaction.get("preferred_patterns", []))
+    tip_phrases = ", ".join(tip.get("preferred_phrases", []))
+    example_lines = "\n".join(f"- {x}" for x in examples[:6])
+    laugh = " ".join(emotion.get("laugh", []))
+    emo = " ".join(emotion.get("emotion", []))
+    pos_emoji = " ".join(emotion.get("positive", []))
+    casual_examples = ", ".join(casual.get("examples", [])[:5])
+
+    return f"""## 페르소나: {identity.get('persona', '블로거')}
+스타일: {identity.get('overall_style', '')}
+시점: {identity.get('writing_perspective', '1인칭')}
+
+## 말투
+톤: {', '.join(voice.get('tone', []))}
+격식: {voice.get('formality', '')}
+성격: {voice.get('personality', '')}
+
+## 문장 스타일
+선호 어미: {endings}
+문장 길이: {sentence.get('sentence_length', '')}
+리듬: {sentence.get('rhythm', '')}
+줄바꿈: {sentence.get('line_breaks', '')}
+구어체: {sentence.get('spoken_expression', '')}
+말줄임: {sentence.get('ellipsis', '')}
+
+## 개인 반응 패턴 (적극 사용):
+{reaction_patterns}
+
+## 팁 표현: {tip_phrases}
+
+## 이모지/이모티콘 (상황에 맞게만):
+웃음: {laugh}
+감정: {emo}
+긍정: {pos_emoji}
+규칙: {emotion.get('rule', '')}
+
+## 캐주얼 표현 (선택적): {casual_examples}
+{casual.get('rule', '')}
+
+## 절대 금지 표현:
+{avoid_list}
+AI 표현 금지: {avoid_ai}
+
+## 이 사람이 실제로 쓴 문장 예시:
+{example_lines}"""
+
 
 class AIWriter:
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
+        self._style = _load_style()
+        self._style_prompt = _build_style_prompt(self._style)
 
     async def enhance_draft(self, keywords: str, draft: str, style_profile: str | None = None, sample_texts: str | None = None) -> dict:
         web_info = await WebSearcher.collect_info(keywords)
 
         messages = []
 
-        if style_profile and sample_texts:
-            # few-shot: 실제 글을 예시로 넣어서 말투를 체득시킴
-            samples = [s.strip() for s in sample_texts.split("\n---\n") if s.strip()]
+        system_content = f"""당신은 숀의 대필 작가입니다. 숀 본인이 직접 쓴 것처럼 보여야 합니다.
+당신의 흔적은 0이어야 합니다. AI가 쓴 티가 나면 실패입니다.
 
-            messages.append({
-                "role": "system",
-                "content": f"""당신은 대필 작가입니다. 아래 작성자의 말투를 완벽히 복제해서 글을 씁니다.
-작성자 본인이 직접 쓴 것처럼 보여야 합니다. 당신의 흔적은 0이어야 합니다.
+{self._style_prompt}
+"""
 
-## 작성자 말투 분석:
+        # 스타일 분석 결과가 있으면 보충 정보로 추가
+        if style_profile:
+            system_content += f"""
+## 추가 스타일 분석 (보충 참고):
 {style_profile}
+"""
 
-## 구두점 규칙 (최우선 적용):
-스타일 분석의 "punctuation_style" 항목을 반드시 따르세요.
-- 작성자가 문장 끝에 마침표(.)를 안 붙이면 → 절대 붙이지 마세요
-- 작성자가 쉼표(,)를 잘 안 쓰면 → 쉼표 넣지 마세요
-- 작성자가 따옴표(' ")를 안 쓰면 → 따옴표 넣지 마세요
-- 작성자가 쓰는 구두점만 그대로 사용하세요
-이건 가장 중요한 규칙입니다. 구두점 하나가 AI 티를 냅니다.
-
-## 소제목 규칙:
-스타일 분석의 "heading_style" 항목을 반드시 따르세요.
-- 작성자가 소제목을 안 쓰면 → 소제목 달지 마세요
-- 작성자가 소제목을 적게 쓰면 → 최소한으로만 사용하세요
-- 절대 AI식으로 소제목을 남발하지 마세요
-
-## 절대 금지:
-- AI스러운 표현 ("또한", "뿐만 아니라", "이처럼", "살펴보겠습니다", "알아보겠습니다")
-- 작성자가 안 쓰는 문체로 바꾸기
-- 과도한 존댓말이나 딱딱한 표현
-- 작성자 원래 구두점 습관을 무시하고 교정하는 행위
-
-## 작업:
-사용자의 초안을 작성자 말투 그대로 다듬어주세요.
-초안의 내용과 의도는 유지하되, 말투/표현/이모지만 작성자 스타일로 바꾸세요.
-키워드를 자연스럽게 초반에 배치하세요.
-블로그 본문 텍스트만 출력하세요.
+        system_content += f"""
+## 작업 규칙:
+1. 초안의 내용과 사실을 그대로 유지하세요
+2. 말투/표현/이모지만 숀 스타일로 바꾸세요
+3. 사용자가 쓰지 않은 경험을 만들어내지 마세요
+4. 키워드를 자연스럽게 초반에 배치하세요
+5. 소제목은 최소한으로만 (없어도 됨)
+6. 블로그 본문 텍스트만 출력하세요
 
 ## 참고 정보 (필요시 자연스럽게 반영):
-{web_info if web_info else "없음"}""",
-            })
+{web_info if web_info else "없음"}"""
 
-            # few-shot 예시: 작성자의 실제 글 2~3개를 보여줌
-            for i, sample in enumerate(samples[:3]):
+        messages.append({"role": "system", "content": system_content})
+
+        # few-shot: 실제 글 예시
+        if sample_texts:
+            samples = [s.strip() for s in sample_texts.split("\n---\n") if s.strip()]
+            for sample in samples[:3]:
                 trimmed = sample[:1500]
-                messages.append({
-                    "role": "user",
-                    "content": f"다음 주제로 블로그 글을 써줘.",
-                })
-                messages.append({
-                    "role": "assistant",
-                    "content": trimmed,
-                })
+                messages.append({"role": "user", "content": "다음 주제로 블로그 글을 써줘."})
+                messages.append({"role": "assistant", "content": trimmed})
 
-            # 실제 요청
-            messages.append({
-                "role": "user",
-                "content": f"키워드: {keywords}\n\n아래 초안을 위 말투 그대로 다듬어줘. 내용은 유지하고 말투만 바꿔.\n\n초안:\n{draft}",
-            })
-        else:
-            # 스타일 없이 기본 보정
-            messages = [
-                {
-                    "role": "system",
-                    "content": f"""당신은 네이버 블로그 글 작성 보조 도구입니다.
-초안을 자연스러운 블로그 글로 다듬어주세요.
-
-## 규칙:
-1. 원래 내용과 의도 유지
-2. 초안 문장 기반으로 살을 붙이기 (새로 쓰지 않기)
-3. AI스러운 표현 금지 ("또한", "뿐만 아니라", "이처럼" 남발 금지)
-4. 자연스러운 구어체 혼합, 문장 길이 다양하게
-5. 키워드를 자연스럽게 초반에 배치
-6. 소제목은 최소한으로만 사용 (없어도 됨)
-7. 초안의 구두점 스타일을 그대로 따르기 (마침표 안 찍으면 안 찍기, 쉼표 안 쓰면 안 쓰기)
-
-## 참고 정보:
-{web_info if web_info else "없음"}
-
-블로그 본문 텍스트만 출력하세요.""",
-                },
-                {"role": "user", "content": f"키워드: {keywords}\n\n초안:\n{draft}"},
-            ]
+        messages.append({
+            "role": "user",
+            "content": f"키워드: {keywords}\n\n아래 초안을 숀 말투 그대로 다듬어줘. 내용은 유지하고 말투만 바꿔.\n\n초안:\n{draft}",
+        })
 
         response = await self.client.chat.completions.create(
             model="gpt-4o",
@@ -127,7 +159,8 @@ class AIWriter:
 - 클릭하고 싶은 제목 (궁금증 유발, 후기형, 정보형 등 다양하게)
 - 너무 길지 않게 (30자 내외)
 - AI스러운 제목 금지 (~ 의 모든 것, ~ 완벽 가이드 같은 거)
-- 실제 블로거들이 쓸 법한 자연스러운 제목
+- 실제 블로거가 쓸 법한 자연스러운 제목
+- 숀 스타일: 친근하고 편안한 톤, 경험 기반 제목
 
 JSON 배열로 반환: ["제목1", "제목2", "제목3", "제목4", "제목5"]""",
                 },
@@ -139,7 +172,6 @@ JSON 배열로 반환: ["제목1", "제목2", "제목3", "제목4", "제목5"]""
             response_format={"type": "json_object"},
             temperature=0.8,
         )
-        import json
         result = json.loads(response.choices[0].message.content)
         if isinstance(result, list):
             return result[:5]
