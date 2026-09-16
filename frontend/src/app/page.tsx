@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { PenSquare, Palette, FileText, Calendar, Camera } from "lucide-react";
+import { Sparkles, PenSquare, Palette, FileText, Calendar, Camera } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WriteSection } from "@/components/sections/write-section";
 import { StyleSection } from "@/components/sections/style-section";
@@ -40,20 +40,11 @@ export default function HomePage() {
         transition={{ duration: 0.3 }}
         className="mb-8 flex items-center gap-2"
       >
-        {/* Pixel art icon */}
-        <div className="grid grid-cols-3 gap-px" style={{ width: 18, height: 18 }}>
-          <span className="rounded-[1px] bg-primary" />
-          <span className="rounded-[1px] bg-primary/60" />
-          <span className="rounded-[1px] bg-transparent" />
-          <span className="rounded-[1px] bg-primary/60" />
-          <span className="rounded-[1px] bg-primary" />
-          <span className="rounded-[1px] bg-primary/60" />
-          <span className="rounded-[1px] bg-transparent" />
-          <span className="rounded-[1px] bg-primary/60" />
-          <span className="rounded-[1px] bg-primary" />
+        <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+          <Sparkles className="size-3.5 text-primary" />
         </div>
         <h1 className="font-[var(--font-pixel)] text-sm tracking-wide text-foreground/80">
-          sYonlog<span className="ml-1.5 text-primary">auto</span>
+          숀로그<span className="ml-1.5 text-primary">auto</span>
         </h1>
         <ApiDot />
       </motion.div>
