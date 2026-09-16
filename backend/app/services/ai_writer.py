@@ -172,10 +172,29 @@ def _build_db_style_prompt(style_json: str) -> str:
 
     punct = s.get("punctuation_style", {})
     if punct:
-        punct_rules = []
-        for key, val in punct.items():
-            punct_rules.append(f"- {key}: {val}")
-        parts.append("## 구두점 규칙 (반드시 지켜):\n" + "\n".join(punct_rules))
+        punct_lines = []
+        period = punct.get("period", "")
+        if "안 붙" in period or "미만" in period:
+            punct_lines.append("- 문장 끝에 마침표(.) 붙이지 마. 예: '~더라고요' (O) '~더라고요.' (X)")
+        comma = punct.get("comma", "")
+        if "안 씀" in comma or "가끔" in comma:
+            punct_lines.append("- 쉼표(,)는 최소한으로만. 나열할 때만 가끔 쓰고 평소엔 안 씀")
+        quotes = punct.get("quotes", "")
+        if "안 씀" in quotes:
+            punct_lines.append("- 따옴표(' \") 거의 쓰지 마")
+        ellipsis = punct.get("ellipsis", "")
+        if "자주" in ellipsis:
+            punct_lines.append("- 말줄임표(...)는 자연스럽게 자주 써")
+        excl = punct.get("exclamation", "")
+        if "자주" in excl:
+            punct_lines.append("- 느낌표(!)는 감정 표현에 적극적으로 써")
+        quest = punct.get("question", "")
+        if "자주" in quest:
+            punct_lines.append("- 물음표(?)도 자주 써")
+        if not punct_lines:
+            for key, val in punct.items():
+                punct_lines.append(f"- {key}: {val}")
+        parts.append("## 구두점 규칙 (가장 중요 — 한 문장도 예외 없이):\n" + "\n".join(punct_lines))
 
     samples = s.get("sample_sentences", [])
     if samples:
