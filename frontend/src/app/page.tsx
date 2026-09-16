@@ -44,9 +44,9 @@ export default function HomePage() {
         <Image
           src="/logo.png"
           alt="숀로그 auto"
-          width={100}
-          height={40}
-          className="h-7 w-auto"
+          width={200}
+          height={80}
+          className="h-14 w-auto"
           priority
         />
         <ApiDot />
