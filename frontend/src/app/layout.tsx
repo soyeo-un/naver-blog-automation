@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Silkscreen } from "next/font/google";
+import { Geist, Geist_Mono, Silkscreen, Gamja_Flower } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -19,6 +19,12 @@ const silkscreen = Silkscreen({
   subsets: ["latin"],
 });
 
+const gamjaFlower = Gamja_Flower({
+  variable: "--font-handwriting",
+  weight: "400",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "숀로그 auto",
   description: "숀로그 auto - AI 기반 블로그 글 작성 도우미",
@@ -28,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} ${silkscreen.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} ${silkscreen.variable} ${gamjaFlower.variable} h-full antialiased dark`}
     >
       <body className="min-h-full bg-background text-foreground" suppressHydrationWarning>
         <ThemeProvider>

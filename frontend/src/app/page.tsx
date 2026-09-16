@@ -43,8 +43,9 @@ export default function HomePage() {
         <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
           <Sparkles className="size-3.5 text-primary" />
         </div>
-        <h1 className="font-[var(--font-pixel)] text-sm tracking-wide text-foreground/80">
-          숀로그<span className="ml-1.5 text-primary">auto</span>
+        <h1 className="flex items-baseline gap-1 text-foreground/80">
+          <span className="font-[var(--font-handwriting)] text-lg">숀로그</span>
+          <span className="font-[var(--font-pixel)] text-[10px] text-primary">auto</span>
         </h1>
         <ApiDot />
       </motion.div>
