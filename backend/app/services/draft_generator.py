@@ -130,6 +130,66 @@ def _build_examples_for_prompt(examples: dict) -> str:
     return "\n\n".join(parts)
 
 
+def _build_db_style_prompt(style_json: str) -> str:
+    """DB의 analyzed_style JSON을 강력한 스타일 프롬프트로 변환"""
+    try:
+        s = json.loads(style_json)
+    except (json.JSONDecodeError, TypeError):
+        return ""
+
+    parts = []
+    if s.get("tone_description"):
+        parts.append(f"## 페르소나: {s['tone_description']}")
+
+    endings = s.get("sentence_endings", [])
+    if endings:
+        parts.append(f"## 문장 어미 (반드시 이것만 사용): {', '.join(endings)}")
+
+    connecting = s.get("connecting_words", [])
+    if connecting:
+        parts.append(f"## 문장 연결어: {', '.join(connecting)}")
+
+    favorites = s.get("favorite_expressions", [])
+    if favorites:
+        parts.append(f"## 자주 쓰는 표현 (적극 사용): {', '.join(favorites)}")
+
+    emoji = s.get("emoji_patterns", [])
+    if emoji:
+        parts.append(f"## 이모지/이모티콘 (상황에 맞게): {', '.join(emoji)}")
+
+    rules = s.get("writing_rules", [])
+    if rules:
+        parts.append("## 글쓰기 규칙 (필수 준수):\n" + "\n".join(f"- {r}" for r in rules))
+
+    banned = s.get("banned_expressions", [])
+    if banned:
+        parts.append("## 절대 사용 금지 표현:\n" + "\n".join(f"- {b}" for b in banned))
+
+    punct = s.get("punctuation_style", {})
+    if punct:
+        punct_rules = []
+        for key, val in punct.items():
+            punct_rules.append(f"- {key}: {val}")
+        parts.append("## 구두점 규칙 (반드시 지켜):\n" + "\n".join(punct_rules))
+
+    samples = s.get("sample_sentences", [])
+    if samples:
+        parts.append("## 실제 문장 예시 (이런 톤으로 써):\n" + "\n".join(f"- {x}" for x in samples))
+
+    heading = s.get("heading_style", {})
+    if heading:
+        if isinstance(heading, dict):
+            parts.append("## 소제목 스타일: " + ", ".join(f"{v}" for v in heading.values()))
+        else:
+            parts.append(f"## 소제목 스타일: {heading}")
+
+    para = s.get("paragraph_style", "")
+    if para:
+        parts.append(f"## 문단 스타일: {para}")
+
+    return "\n\n".join(parts)
+
+
 class DraftGenerator:
     """사진 분석 결과 + 스타일을 결합하여 블로그 초안 생성.
     이 단계에서 GPT 1회만 호출."""
@@ -179,16 +239,15 @@ class DraftGenerator:
 
         photo_context = _build_photo_context(photo_summary, client_request, keywords)
 
+        # DB 스타일이 있으면 메인으로, style.json은 보조로
+        db_style_prompt = _build_db_style_prompt(db_style) if db_style else ""
+        main_style = db_style_prompt or self._style_prompt
+
         system_content = f"""당신은 숀의 대필 작가입니다. 숀 본인이 직접 쓴 블로그 글처럼 보여야 합니다.
 당신의 흔적은 0이어야 합니다. AI가 쓴 티가 나면 실패입니다.
+아래 스타일 규칙을 반드시 지켜야 합니다. 특히 구두점, 어미, 금지 표현 규칙은 한 문장도 예외 없이 적용하세요.
 
-{self._style_prompt}
-"""
-
-        if db_style:
-            system_content += f"""
-## URL 분석 스타일 (보충 참고):
-{db_style}
+{main_style}
 """
 
         if examples_prompt:
