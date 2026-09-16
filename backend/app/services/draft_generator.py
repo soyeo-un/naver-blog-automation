@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.config import settings
 from app.services.text_cleaner import TextCleaner
@@ -138,6 +139,25 @@ class DraftGenerator:
         self._style_prompt = _load_style_prompt()
         self._searcher = ExampleSearcher()
 
+    async def _get_db_style(self, category: str, db: AsyncSession) -> str:
+        """DB에서 해당 카테고리 또는 활성 스타일 프로필의 analyzed_style 조회"""
+        from app.models import StyleProfile
+        if category:
+            result = await db.execute(
+                select(StyleProfile).where(
+                    StyleProfile.category == category, StyleProfile.is_active == 1
+                )
+            )
+            profile = result.scalar_one_or_none()
+            if profile and profile.analyzed_style:
+                return profile.analyzed_style
+        # 카테고리 매칭 없으면 아무 활성 프로필이라도
+        result = await db.execute(
+            select(StyleProfile).where(StyleProfile.is_active == 1).limit(1)
+        )
+        profile = result.scalar_one_or_none()
+        return profile.analyzed_style if profile and profile.analyzed_style else ""
+
     async def generate_draft(
         self,
         photo_summary: dict,
@@ -148,12 +168,14 @@ class DraftGenerator:
     ) -> dict:
         # 코드로 관련 예시 검색 (GPT 0회)
         examples_prompt = ""
+        db_style = ""
         if db:
             search_text = client_request + " " + keywords
             for scene in photo_summary.get("scenes", []):
                 search_text += " " + scene.get("summary", "")
             examples = await self._searcher.search_relevant(search_text, category, db)
             examples_prompt = _build_examples_for_prompt(examples)
+            db_style = await self._get_db_style(category, db)
 
         photo_context = _build_photo_context(photo_summary, client_request, keywords)
 
@@ -161,6 +183,12 @@ class DraftGenerator:
 당신의 흔적은 0이어야 합니다. AI가 쓴 티가 나면 실패입니다.
 
 {self._style_prompt}
+"""
+
+        if db_style:
+            system_content += f"""
+## URL 분석 스타일 (보충 참고):
+{db_style}
 """
 
         if examples_prompt:

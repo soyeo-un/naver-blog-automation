@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.config import settings
 from app.services.text_cleaner import TextCleaner
@@ -164,6 +165,26 @@ class AIWriter:
         if db:
             examples = await self._searcher.search_relevant(draft, category, db)
             examples_prompt = _build_examples_prompt(examples)
+
+            # style_profile이 없으면 DB에서 활성 프로필 자동 로드
+            if not style_profile:
+                from app.models import StyleProfile
+                if category:
+                    sr = await db.execute(
+                        select(StyleProfile).where(
+                            StyleProfile.category == category, StyleProfile.is_active == 1
+                        )
+                    )
+                    profile = sr.scalar_one_or_none()
+                else:
+                    sr = await db.execute(
+                        select(StyleProfile).where(StyleProfile.is_active == 1).limit(1)
+                    )
+                    profile = sr.scalar_one_or_none()
+                if profile:
+                    style_profile = profile.analyzed_style
+                    if not sample_texts:
+                        sample_texts = profile.sample_texts
 
         messages = []
 
