@@ -42,7 +42,7 @@ class StyleAnalyzer:
     - "ellipsis": 말줄임표(...) 사용 여부
     - "exclamation": 느낌표(!) 사용 빈도
     - "question": 물음표(?) 사용 빈도
-    예: {"period": "문장 끝에 . 거의 안 붙임 (10% 미만)", "comma": "거의 안 씀", "quotes": "작은따옴표 거의 안 씀", "ellipsis": "자주 사용", "exclamation": "가끔 사용", "question": "자주 사용"}
+    예: {{"period": "문장 끝에 . 거의 안 붙임 (10% 미만)", "comma": "거의 안 씀", "quotes": "작은따옴표 거의 안 씀", "ellipsis": "자주 사용", "exclamation": "가끔 사용", "question": "자주 사용"}}
 11. "heading_style": 소제목(##, 볼드 등) 사용 패턴. 반드시 다음 포함:
     - 소제목을 쓰는지 안 쓰는지
     - 쓴다면 몇 개 정도 쓰는지
