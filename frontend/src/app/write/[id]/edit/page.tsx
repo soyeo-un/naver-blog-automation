@@ -32,7 +32,10 @@ export default function EditPage({
       .then((p) => {
         setPost(p);
         setTitle(p.title);
-        setContent(p.enhanced_text || p.draft_text || "");
+        const raw = p.enhanced_text || p.draft_text || "";
+        // plain text(\n)를 HTML(<br>)로 변환 (이미 HTML이면 그대로)
+        const html = raw.includes("<") ? raw : raw.replace(/\n/g, "<br>");
+        setContent(html);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
