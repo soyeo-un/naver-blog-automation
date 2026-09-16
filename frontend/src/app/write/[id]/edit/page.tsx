@@ -3,13 +3,13 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Loader2, MapPin, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, MapPin, RotateCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TiptapEditor } from "@/components/editor/tiptap-editor";
 import { PlaceInfoDialog } from "@/components/editor/place-info-dialog";
-import { getPost, updatePost, type Post } from "@/lib/api";
+import { getPost, updatePost, enhancePost, type Post } from "@/lib/api";
 
 export default function EditPage({
   params,
@@ -21,6 +21,7 @@ export default function EditPage({
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,6 +62,23 @@ export default function EditPage({
       // silent fail
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleReEnhance = async () => {
+    if (!post) return;
+    setEnhancing(true);
+    try {
+      // HTML → plain text 변환
+      const div = document.createElement("div");
+      div.innerHTML = content;
+      const plainText = div.textContent || div.innerText || "";
+      // 수정된 텍스트를 draft로 저장 후 AI 보정
+      await updatePost(Number(id), { title, draft_text: plainText });
+      await enhancePost(post.id);
+      router.push(`/write/${id}/review`);
+    } catch {
+      setEnhancing(false);
     }
   };
 
@@ -120,6 +138,20 @@ export default function EditPage({
               <Save className="size-3.5" />
             )}
             저장
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReEnhance}
+            disabled={enhancing}
+            className="gap-1.5"
+          >
+            {enhancing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RotateCw className="size-3.5" />
+            )}
+            AI 추가 보정
           </Button>
           <Button
             size="sm"
