@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Silkscreen } from "next/font/google";
-import localFont from "next/font/local";
-
-const uhbeeSehyun = localFont({
-  src: "../../public/fonts/UhBeeSehyunBold.woff2",
-  variable: "--font-handwriting",
-  display: "swap",
-});
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -20,13 +13,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const silkscreen = Silkscreen({
-  variable: "--font-pixel",
-  weight: ["400", "700"],
-  subsets: ["latin"],
-});
-
-
 export const metadata: Metadata = {
   title: "숀로그 auto",
   description: "숀로그 auto - AI 기반 블로그 글 작성 도우미",
@@ -36,7 +22,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} ${silkscreen.variable} ${uhbeeSehyun.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full bg-background text-foreground" suppressHydrationWarning>
         <ThemeProvider>
