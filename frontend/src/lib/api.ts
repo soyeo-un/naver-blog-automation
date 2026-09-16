@@ -230,3 +230,42 @@ export function updateSponsorship(id: number, data: Partial<Sponsorship>) {
 export function deleteSponsorship(id: number) {
   return fetchAPI(`/api/sponsorship/${id}`, { method: "DELETE" });
 }
+
+// ── Schedule ──
+export interface ScheduleEvent {
+  id: number;
+  title: string;
+  start_date: string;
+  end_date?: string | null;
+  memo?: string | null;
+  notify: boolean;
+  created_at: string;
+}
+
+export function getSchedules() {
+  return fetchAPI<ScheduleEvent[]>("/api/schedule/");
+}
+
+export function createSchedule(data: {
+  title: string;
+  start_date: string;
+  end_date?: string;
+  memo?: string;
+  notify: boolean;
+}) {
+  return fetchAPI<ScheduleEvent>("/api/schedule/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateSchedule(id: number, data: Partial<ScheduleEvent>) {
+  return fetchAPI<ScheduleEvent>(`/api/schedule/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteSchedule(id: number) {
+  return fetchAPI(`/api/schedule/${id}`, { method: "DELETE" });
+}

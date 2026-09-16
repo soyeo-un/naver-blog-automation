@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WriteSection } from "@/components/sections/write-section";
 import { StyleSection } from "@/components/sections/style-section";
 import { PostsSection } from "@/components/sections/posts-section";
-import { SponsorshipSection } from "@/components/sections/sponsorship-section";
+import { CalendarSection } from "@/components/sections/calendar-section";
 import { API_URL } from "@/lib/api";
 
 function ApiDot() {
@@ -68,9 +68,9 @@ export default function HomePage() {
               <FileText className="size-3" />
               내 글
             </TabsTrigger>
-            <TabsTrigger value="sponsorship" className="gap-1.5 text-xs">
+            <TabsTrigger value="calendar" className="gap-1.5 text-xs">
               <Calendar className="size-3" />
-              협찬
+              캘린더
             </TabsTrigger>
           </TabsList>
 
@@ -86,8 +86,8 @@ export default function HomePage() {
             <PostsSection />
           </TabsContent>
 
-          <TabsContent value="sponsorship">
-            <SponsorshipSection />
+          <TabsContent value="calendar">
+            <CalendarSection />
           </TabsContent>
         </Tabs>
       </motion.div>

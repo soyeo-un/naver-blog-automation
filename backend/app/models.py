@@ -76,3 +76,15 @@ class Sponsorship(Base):
     status = Column(String(50), default="pending")
     notified = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(500), nullable=False)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=True)
+    memo = Column(Text, nullable=True)
+    notify = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now())

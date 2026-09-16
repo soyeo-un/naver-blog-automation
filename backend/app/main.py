@@ -11,7 +11,7 @@ from app.models import Sponsorship
 from app.config import settings
 from app.services.kakao_notify import KakaoNotify
 from app.routers import posts, clean, style, ai, places
-from app.routers import seo, convert, upload, sponsorship
+from app.routers import seo, convert, upload, sponsorship, schedule
 
 scheduler = AsyncIOScheduler()
 
@@ -71,6 +71,7 @@ app.include_router(seo.router)
 app.include_router(convert.router)
 app.include_router(upload.router)
 app.include_router(sponsorship.router)
+app.include_router(schedule.router)
 
 
 @app.get("/")
